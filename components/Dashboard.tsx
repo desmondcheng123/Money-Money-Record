@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { PortfolioStats, Asset, AssetGroup, TransactionType } from '../types';
 import { 
@@ -429,7 +428,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </button>
               
               <p className="text-[10px] text-center text-slate-400 mt-4">
-                To fix the 404, go to <strong>More > Hosting Guide</strong>.
+                To fix the 404, go to <strong>More &gt; Hosting Guide</strong>.
               </p>
             </div>
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { 
   Globe, 
@@ -212,7 +211,7 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
                   Connect to Vercel
                 </h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
-                  Go to <strong>Vercel.com</strong>, click "Add New" > "Project", and select your GitHub repo.
+                  Go to <strong>Vercel.com</strong>, click "Add New" &gt; "Project", and select your GitHub repo.
                 </p>
               </div>
 
