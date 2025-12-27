@@ -11,16 +11,14 @@ import {
   Info,
   RefreshCcw,
   Share2,
-  Smartphone,
   X,
   Check,
   QrCode,
-  ExternalLink,
-  AlertTriangle,
   Lock,
   Github,
   Rocket,
-  Zap
+  Zap,
+  AlertCircle
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -105,7 +103,7 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
       </div>
       <div className="flex items-center space-x-2">
         {value && <span className={`text-sm font-medium ${variant === 'danger' ? 'text-rose-600' : 'text-indigo-600'}`}>{value}</span>}
-        {copied && label === "Copy Current Link" ? <Check size={16} className="text-emerald-500" /> : <ChevronRight size={16} className={variant === 'danger' ? 'text-rose-300' : 'text-slate-300'} />}
+        {copied && label === "Copy Link" ? <Check size={16} className="text-emerald-500" /> : <ChevronRight size={16} className={variant === 'danger' ? 'text-rose-300' : 'text-slate-300'} />}
       </div>
     </button>
   );
@@ -116,27 +114,27 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
         <h2 className="text-2xl font-bold">More</h2>
         <div className="flex items-center space-x-1 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-full text-[10px] font-bold uppercase tracking-tighter">
           <ShieldCheck size={12} className="mr-1" />
-          <span>Local Only Data</span>
+          <span>Privacy Secured</span>
         </div>
       </div>
 
       <section className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-600/20">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
-            <Zap size={24} className="text-amber-400 fill-amber-400" />
-            <h3 className="font-bold text-lg">Deploy App</h3>
+            <Rocket size={24} className="text-white" />
+            <h3 className="font-bold text-lg">Fix Blank Page</h3>
           </div>
-          <div className="px-2 py-0.5 bg-white/20 rounded-md text-[8px] font-bold uppercase tracking-widest">v1.6.0</div>
+          <div className="px-2 py-0.5 bg-white/20 rounded-md text-[8px] font-bold uppercase tracking-widest">Guide</div>
         </div>
         <p className="text-xs text-indigo-100 leading-relaxed mb-4">
-          Is your GitHub page blank? That's because it can't read React code directly. Use <strong>Vercel</strong> to fix it instantly.
+          GitHub Pages shows a blank page because it doesn't know how to read React code. <strong>Vercel</strong> fixes this automatically.
         </p>
         <button 
           onClick={() => setShowHostingGuide(true)}
           className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-lg hover:bg-indigo-50 active:scale-95 transition-all"
         >
-          <Rocket size={14} />
-          <span>Fix Blank Page Guide</span>
+          <Zap size={14} className="fill-indigo-600" />
+          <span>Deploy to Vercel (Free)</span>
         </button>
       </section>
 
@@ -177,7 +175,7 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
         <input type="file" className="hidden" ref={fileInputRef} onChange={handleImport} accept=".json" />
         <SettingItem icon={FileUp} label="Import Data" value="Upload .json" onClick={() => fileInputRef.current?.click()} />
         <SettingItem icon={Download} label="Export Data" value="Save .json" onClick={handleExport} />
-        <SettingItem icon={ShieldCheck} label="Privacy FAQ" onClick={() => setShowPrivacyNotice(true)} />
+        <SettingItem icon={Lock} label="Privacy FAQ" onClick={() => setShowPrivacyNotice(true)} />
       </section>
 
       <section>
@@ -192,40 +190,49 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowHostingGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
             <div className="bg-indigo-100 dark:bg-indigo-900/30 w-16 h-16 rounded-3xl flex items-center justify-center mb-6">
-               <Zap size={32} className="text-indigo-600" />
+               <Rocket size={32} className="text-indigo-600" />
             </div>
-            <h3 className="text-2xl font-bold mb-2">Why it's blank</h3>
-            <p className="text-sm text-slate-500 mb-6 leading-relaxed">GitHub Pages can only read plain HTML. It doesn't know how to "read" React/TypeScript (.tsx) files, so it displays nothing.</p>
+            <h3 className="text-2xl font-bold mb-2">Step-by-Step Vercel</h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">Since this app uses TypeScript (.tsx), standard GitHub Pages won't work. Follow this:</p>
             
             <div className="space-y-4">
-              <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-3xl">
-                <h4 className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center">
-                  <Rocket size={16} className="mr-2" /> Use Vercel (Recommended)
-                </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
-                  1. Log in to <strong>Vercel.com</strong> with your GitHub account.<br/>
-                  2. Click <strong>"Add New"</strong> -> <strong>"Project"</strong>.<br/>
-                  3. Select your GitHub repo.<br/>
-                  4. Vercel will build your React code <strong>automatically</strong>.
-                </p>
-              </div>
-
-              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700">
-                <h4 className="font-bold text-slate-800 dark:text-white flex items-center">
-                   <Github size={16} className="mr-2" /> If you stay on GitHub:
+              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl">
+                <h4 className="font-bold text-slate-800 dark:text-white flex items-center text-sm">
+                  <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mr-2">1</div>
+                  Upload to GitHub
                 </h4>
                 <p className="text-xs text-slate-500 mt-2">
-                  You would need a "Build Tool" (like Vite or Webpack) to turn your .tsx into .js before uploading. <strong>Vercel does this for you for free.</strong>
+                  Upload all files (including the new <code className="text-indigo-600">package.json</code>) to a <strong>Public</strong> GitHub repository.
                 </p>
               </div>
 
-              <div className="flex items-start space-x-3 text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-4 rounded-3xl">
-                <AlertTriangle size={18} className="shrink-0" />
-                <p className="text-[10px] font-bold uppercase leading-tight">Important: Make sure your index.html has the script tag for index.tsx!</p>
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-3xl">
+                <h4 className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center text-sm">
+                  <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mr-2">2</div>
+                  Connect to Vercel
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
+                  Go to <strong>Vercel.com</strong>, click "Add New" > "Project", and select your GitHub repo.
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl">
+                <h4 className="font-bold text-slate-800 dark:text-white flex items-center text-sm">
+                  <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mr-2">3</div>
+                  Deploy
+                </h4>
+                <p className="text-xs text-slate-500 mt-2">
+                  Vercel will see the <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">package.json</code> and build the app automatically. You'll get a real link in seconds!
+                </p>
+              </div>
+
+              <div className="flex items-start space-x-3 text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-4 rounded-3xl border border-amber-200/50">
+                <AlertCircle size={18} className="shrink-0" />
+                <p className="text-[10px] font-bold uppercase leading-tight">Do not use GitHub Pages settings for this app. It only supports plain HTML.</p>
               </div>
             </div>
 
-            <button onClick={() => setShowHostingGuide(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Try Vercel Now</button>
+            <button onClick={() => setShowHostingGuide(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">I'll use Vercel now</button>
           </div>
         </div>
       )}
@@ -236,16 +243,15 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative">
             <button onClick={() => setShowPrivacyNotice(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
             <Lock size={40} className="text-indigo-600 mb-4" />
-            <h3 className="text-xl font-bold mb-4">Why Public is safe</h3>
+            <h3 className="text-xl font-bold mb-4">Privacy Built-in</h3>
             <div className="space-y-4 text-sm text-slate-500 leading-relaxed">
-              <p>When you set GitHub to <strong>Public</strong>, you are only sharing the "engine" of the app.</p>
+              <p>Your data is stored <strong>locally</strong>. Even if your GitHub repository is Public, your money records are not.</p>
               <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Think of it like this:</p>
-                <p className="text-xs mt-1">If you share a photo of a calculator, everyone can use the calculator, but they can't see what numbers YOU typed into YOUR calculator yesterday.</p>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">The "Engine" vs "The Fuel"</p>
+                <p className="text-xs mt-1">GitHub holds the engine (the app code). Your browser holds the fuel (your portfolio data). No one can see your fuel just by looking at the engine.</p>
               </div>
-              <p>Your portfolio data (your actual money) never leaves your browser. It's stored in your phone's memory, not on GitHub's servers.</p>
             </div>
-            <button onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">I feel safe now</button>
+            <button onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Understood</button>
           </div>
         </div>
       )}
