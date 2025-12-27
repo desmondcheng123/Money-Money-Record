@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   Lock,
   Github,
-  Rocket
+  Rocket,
+  Zap
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -119,20 +120,23 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
         </div>
       </div>
 
-      <section className="bg-indigo-600 rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-600/20">
-        <div className="flex items-center space-x-3 mb-3">
-          <Github size={24} />
-          <h3 className="font-bold text-lg">GitHub Setup Guide</h3>
+      <section className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-600/20">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            <Zap size={24} className="text-amber-400 fill-amber-400" />
+            <h3 className="font-bold text-lg">Deploy App</h3>
+          </div>
+          <div className="px-2 py-0.5 bg-white/20 rounded-md text-[8px] font-bold uppercase tracking-widest">v1.6.0</div>
         </div>
         <p className="text-xs text-indigo-100 leading-relaxed mb-4">
-          Ready to put your app online? Follow these exact steps on your GitHub screen to avoid 404s.
+          Is your GitHub page blank? That's because it can't read React code directly. Use <strong>Vercel</strong> to fix it instantly.
         </p>
         <button 
           onClick={() => setShowHostingGuide(true)}
-          className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-lg"
+          className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-lg hover:bg-indigo-50 active:scale-95 transition-all"
         >
           <Rocket size={14} />
-          <span>Show Step-by-Step Tutorial</span>
+          <span>Fix Blank Page Guide</span>
         </button>
       </section>
 
@@ -179,7 +183,7 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
       <section>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">System</p>
         <SettingItem icon={RefreshCcw} label="Reset Portfolio" variant="danger" onClick={onResetData} />
-        <SettingItem icon={Info} label="App Version" value="v1.5.0" />
+        <SettingItem icon={Info} label="App Version" value="v1.6.0" />
       </section>
 
       {/* Hosting/Public Guide Modal */}
@@ -188,46 +192,40 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowHostingGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
             <div className="bg-indigo-100 dark:bg-indigo-900/30 w-16 h-16 rounded-3xl flex items-center justify-center mb-6">
-               <Github size={32} className="text-indigo-600" />
+               <Zap size={32} className="text-indigo-600" />
             </div>
-            <h3 className="text-2xl font-bold mb-2">Step-by-Step Setup</h3>
-            <p className="text-sm text-slate-500 mb-6 leading-relaxed">Follow these steps on GitHub to make your link work for everyone:</p>
+            <h3 className="text-2xl font-bold mb-2">Why it's blank</h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">GitHub Pages can only read plain HTML. It doesn't know how to "read" React/TypeScript (.tsx) files, so it displays nothing.</p>
             
             <div className="space-y-4">
-              <div className="flex items-start space-x-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl">
-                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold shrink-0">1</div>
-                <div>
-                  <h4 className="font-bold text-sm">Create Repository</h4>
-                  <p className="text-xs text-slate-500">Name it <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">money-record</code>. Choose <strong>Public</strong> visibility so GitHub Pages can host it for free.</p>
-                </div>
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-3xl">
+                <h4 className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center">
+                  <Rocket size={16} className="mr-2" /> Use Vercel (Recommended)
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
+                  1. Log in to <strong>Vercel.com</strong> with your GitHub account.<br/>
+                  2. Click <strong>"Add New"</strong> -> <strong>"Project"</strong>.<br/>
+                  3. Select your GitHub repo.<br/>
+                  4. Vercel will build your React code <strong>automatically</strong>.
+                </p>
               </div>
 
-              <div className="flex items-start space-x-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl">
-                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold shrink-0">2</div>
-                <div>
-                  <h4 className="font-bold text-sm">Upload Your Files</h4>
-                  <p className="text-xs text-slate-500">Upload all files (<code className="text-indigo-600">index.html</code>, <code className="text-indigo-600">App.tsx</code>, etc.). Do not put them in a folder; put them in the root.</p>
-                </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700">
+                <h4 className="font-bold text-slate-800 dark:text-white flex items-center">
+                   <Github size={16} className="mr-2" /> If you stay on GitHub:
+                </h4>
+                <p className="text-xs text-slate-500 mt-2">
+                  You would need a "Build Tool" (like Vite or Webpack) to turn your .tsx into .js before uploading. <strong>Vercel does this for you for free.</strong>
+                </p>
               </div>
 
-              <div className="flex items-start space-x-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl">
-                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold shrink-0">3</div>
-                <div>
-                  <h4 className="font-bold text-sm">Enable "Pages"</h4>
-                  <p className="text-xs text-slate-500">Go to <strong>Settings</strong> > <strong>Pages</strong> (on left sidebar). Under "Branch", select <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">main</code> and click <strong>Save</strong>.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-4 p-4 border-2 border-dashed border-indigo-200 rounded-3xl">
-                <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold shrink-0"><Check size={16} /></div>
-                <div>
-                  <h4 className="font-bold text-sm">Wait 2 Minutes</h4>
-                  <p className="text-xs text-slate-500">GitHub needs time to "Build" your site. Refresh the Pages screen until you see: <span className="text-emerald-600 font-bold">"Your site is live at..."</span></p>
-                </div>
+              <div className="flex items-start space-x-3 text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-4 rounded-3xl">
+                <AlertTriangle size={18} className="shrink-0" />
+                <p className="text-[10px] font-bold uppercase leading-tight">Important: Make sure your index.html has the script tag for index.tsx!</p>
               </div>
             </div>
 
-            <button onClick={() => setShowHostingGuide(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Got it, let's go!</button>
+            <button onClick={() => setShowHostingGuide(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Try Vercel Now</button>
           </div>
         </div>
       )}
@@ -258,7 +256,7 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative text-center">
             <button onClick={() => setShowInstallGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
             <h3 className="text-xl font-bold mb-2">Sync to Mobile</h3>
-            <p className="text-[10px] text-slate-500 mb-6 uppercase font-bold tracking-widest">Only works if your link is public!</p>
+            <p className="text-[10px] text-slate-500 mb-6 uppercase font-bold tracking-widest">Only works if your link is live!</p>
             
             <div className="bg-white p-4 rounded-3xl inline-block mb-6 shadow-sm border border-slate-100">
                <img 
