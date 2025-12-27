@@ -13,7 +13,7 @@ import {
   Cell,
   Dot
 } from 'recharts';
-import { TrendingDown, ArrowUpRight, ArrowDownRight, FolderPlus, UserPlus, X, Folder, GripVertical, Trash2, Edit3, Target, PieChart as PieIcon, CloudCheck, Share2, Download, Globe, AlertCircle } from 'lucide-react';
+import { TrendingDown, ArrowUpRight, ArrowDownRight, FolderPlus, UserPlus, X, Folder, GripVertical, Trash2, Edit3, Target, PieChart as PieIcon, Cloud, Share2, Download, Globe, AlertCircle } from 'lucide-react';
 import { Portfolio } from './Portfolio';
 
 interface DashboardProps {
@@ -204,7 +204,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center space-x-2">
               <p className="text-slate-500 font-medium text-sm">Total Portfolio Value</p>
               <div className="flex items-center space-x-1 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-md text-[8px] font-black uppercase tracking-tighter save-indicator">
-                <CloudCheck size={10} />
+                <Cloud size={10} />
                 <span>Saved</span>
               </div>
             </div>
