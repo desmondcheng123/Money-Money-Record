@@ -8,6 +8,20 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { INITIAL_ASSETS, INITIAL_TRANSACTIONS } from './mockData';
 
+// Utility for decompression
+async function decompressData(base64: string) {
+  try {
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const decompressed = await new Response(stream).text();
+    return JSON.parse(decompressed);
+  } catch (e) {
+    // Fallback for old non-compressed keys
+    return JSON.parse(atob(base64));
+  }
+}
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('zeninvest_current_user');
@@ -43,19 +57,22 @@ const App: React.FC = () => {
 
   // Sync / URL Import Logic
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const syncData = params.get('import');
-    if (syncData) {
-      try {
-        const decoded = JSON.parse(atob(syncData));
-        if (window.confirm(`Found sync data for ${decoded.user?.name || 'an account'}! Import it now?`)) {
-          handleLogin(decoded.user, decoded);
-          window.history.replaceState({}, document.title, window.location.pathname);
+    const checkImport = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const syncData = params.get('import');
+      if (syncData) {
+        try {
+          const decoded = await decompressData(syncData);
+          if (window.confirm(`Found sync data for ${decoded.user?.name || 'an account'}! Import it now?`)) {
+            handleLogin(decoded.user, decoded);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (e) {
+          console.error("Failed to parse sync data");
         }
-      } catch (e) {
-        console.error("Failed to parse sync data");
       }
-    }
+    };
+    checkImport();
   }, []);
 
   useEffect(() => { 
@@ -73,9 +90,9 @@ const App: React.FC = () => {
     localStorage.setItem('zeninvest_current_user', JSON.stringify(user));
     
     if (importedData) {
-      setAssets(importedData.assets);
+      setAssets(importedData.assets || []);
       setGroups(importedData.groups || []);
-      setTransactions(importedData.transactions);
+      setTransactions(importedData.transactions || []);
       setCurrency(importedData.currency || 'USD');
     }
   };
@@ -85,6 +102,7 @@ const App: React.FC = () => {
       setCurrentUser(null);
       localStorage.removeItem('zeninvest_current_user');
       setCurrentScreen(Screen.DASHBOARD);
+      setSelectedAssetId(null);
     }
   };
 

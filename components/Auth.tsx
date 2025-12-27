@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 // Import User as UserIcon to avoid conflict with the User type
 import { User as UserIcon, Rocket, ShieldCheck, Key, ArrowRight, UserPlus, LogIn, Sparkles } from 'lucide-react';
@@ -9,11 +8,26 @@ interface AuthProps {
   onLogin: (user: User, importedData?: any) => void;
 }
 
+// Utility for decompression
+async function decompressData(base64: string) {
+  try {
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const decompressed = await new Response(stream).text();
+    return JSON.parse(decompressed);
+  } catch (e) {
+    // Fallback for old non-compressed keys
+    return JSON.parse(atob(base64));
+  }
+}
+
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'SYNC'>('LOGIN');
   const [name, setName] = useState('');
   const [syncKey, setSyncKey] = useState('');
   const [error, setError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +39,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       lastLogin: new Date().toISOString()
     };
     
-    // Save to global user registry for this browser
     const registry = JSON.parse(localStorage.getItem('zeninvest_users') || '[]');
     registry.push(newUser);
     localStorage.setItem('zeninvest_users', JSON.stringify(registry));
@@ -33,17 +46,25 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     onLogin(newUser);
   };
 
-  const handleSync = (e: React.FormEvent) => {
+  const handleSync = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!syncKey.trim()) return;
+    
+    setIsProcessing(true);
+    setError('');
+    
     try {
-      const decoded = JSON.parse(atob(syncKey));
+      const decoded = await decompressData(syncKey.trim());
       if (decoded.assets && decoded.user) {
         onLogin(decoded.user, decoded);
       } else {
-        setError("Invalid Sync Key. Please check and try again.");
+        setError("Invalid Sync Key content. Missing required data.");
       }
     } catch (err) {
-      setError("Invalid Sync Key format.");
+      console.error(err);
+      setError("Invalid Sync Key format. Please ensure you copied the whole key.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -111,7 +132,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
           {mode === 'SIGNUP' && (
             <form onSubmit={handleSignup} className="space-y-6">
-              <h2 className="text-xl font-bold flex items-center"><UserPlus size={20} className="mr-2 text-indigo-50" /> New Profile</h2>
+              <h2 className="text-xl font-bold flex items-center"><UserPlus size={20} className="mr-2 text-indigo-500" /> New Profile</h2>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Your Name</label>
                 <input 
@@ -154,8 +175,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               </div>
               {error && <p className="text-[10px] font-bold text-rose-500 px-1">{error}</p>}
               <div className="flex flex-col space-y-3">
-                <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/30">
-                  Restore Data
+                <button 
+                  type="submit" 
+                  disabled={isProcessing}
+                  className={`w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/30 flex items-center justify-center ${isProcessing ? 'opacity-70' : ''}`}
+                >
+                  {isProcessing ? 'Decompressing...' : 'Restore Data'}
                 </button>
                 <button type="button" onClick={() => setMode('LOGIN')} className="w-full py-4 text-slate-400 font-bold">
                   Go Back

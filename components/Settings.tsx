@@ -37,6 +37,15 @@ interface SettingsProps {
   onLogout: () => void;
 }
 
+// Utility for compression
+async function compressData(data: any) {
+  const str = JSON.stringify(data);
+  const buf = new TextEncoder().encode(str);
+  const stream = new Blob([buf]).stream().pipeThrough(new CompressionStream('gzip'));
+  const compressedBuf = await new Response(stream).arrayBuffer();
+  return btoa(String.fromCharCode(...new Uint8Array(compressedBuf)));
+}
+
 export const Settings: React.FC<SettingsProps> = ({ 
   currency, setCurrency, isDarkMode, setIsDarkMode, onResetData, assets, transactions, groups, currentUser, onLogout 
 }) => {
@@ -44,6 +53,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncUrl, setSyncUrl] = useState('');
 
   const handleExport = () => {
     const data = {
@@ -91,24 +102,32 @@ export const Settings: React.FC<SettingsProps> = ({
     reader.readAsText(file);
   };
 
-  const generateSyncLink = () => {
+  const generateSyncData = async () => {
+    setIsSyncing(true);
     const data = { assets, transactions, groups, currency, user: currentUser };
-    const encoded = btoa(JSON.stringify(data));
-    const baseUrl = window.location.href.split('?')[0];
-    return `${baseUrl}?import=${encoded}`;
+    const compressed = await compressData(data);
+    setIsSyncing(false);
+    return compressed;
   };
 
-  const copySyncKey = () => {
-    const data = { assets, transactions, groups, currency, user: currentUser };
-    const encoded = btoa(JSON.stringify(data));
-    navigator.clipboard.writeText(encoded);
+  const copySyncKey = async () => {
+    const compressed = await generateSyncData();
+    navigator.clipboard.writeText(compressed);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleOpenSyncModal = async () => {
+    setIsSyncing(true);
+    const compressed = await generateSyncData();
+    const baseUrl = window.location.href.split('?')[0];
+    setSyncUrl(`${baseUrl}?import=${compressed}`);
+    setShowSyncModal(true);
+    setIsSyncing(false);
+  };
+
   const copyLink = () => {
-    const link = generateSyncLink();
-    navigator.clipboard.writeText(link);
+    navigator.clipboard.writeText(syncUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -146,7 +165,7 @@ export const Settings: React.FC<SettingsProps> = ({
            </div>
         </div>
         <button 
-          onClick={() => onLogout()} 
+          onClick={onLogout} 
           className="p-3 text-rose-500 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
           title="Logout"
         >
@@ -162,16 +181,24 @@ export const Settings: React.FC<SettingsProps> = ({
            </div>
            <div>
               <h3 className="font-bold text-slate-800 dark:text-slate-100">Cross-Device Sync</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">To use this app on another PC, you need your <strong>Master Sync Key</strong>.</p>
+              <p className="text-xs text-slate-500 leading-relaxed">To use this app on another PC, you need your <strong>Compressed Sync Key</strong>.</p>
            </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-           <button onClick={copySyncKey} className={`flex items-center justify-center space-x-2 py-3 font-bold rounded-2xl text-[11px] shadow-lg transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white shadow-indigo-600/20'}`}>
-              {copied ? <Check size={14} /> : <Key size={14} />}
+           <button 
+             onClick={copySyncKey} 
+             disabled={isSyncing}
+             className={`flex items-center justify-center space-x-2 py-3 font-bold rounded-2xl text-[11px] shadow-lg transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white shadow-indigo-600/20'} ${isSyncing ? 'opacity-50' : ''}`}
+           >
+              {isSyncing ? <RefreshCcw size={14} className="animate-spin" /> : (copied ? <Check size={14} /> : <Key size={14} />)}
               <span>{copied ? 'Key Copied!' : 'Copy Sync Key'}</span>
            </button>
-           <button onClick={() => setShowSyncModal(true)} className="flex items-center justify-center space-x-2 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-[11px] active:scale-95 transition-all">
-              <Smartphone size={14} />
+           <button 
+             onClick={handleOpenSyncModal} 
+             disabled={isSyncing}
+             className={`flex items-center justify-center space-x-2 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-[11px] active:scale-95 transition-all ${isSyncing ? 'opacity-50' : ''}`}
+           >
+              {isSyncing ? <RefreshCcw size={14} className="animate-spin" /> : <Smartphone size={14} />}
               <span>QR Sync</span>
            </button>
         </div>
@@ -204,7 +231,7 @@ export const Settings: React.FC<SettingsProps> = ({
       <section>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">System</p>
         <SettingItem icon={RefreshCcw} label="Reset Portfolio" variant="danger" onClick={onResetData} />
-        <SettingItem icon={Info} label="App Version" value="v2.0.0" />
+        <SettingItem icon={Info} label="App Version" value="v2.1.0" />
       </section>
 
       {/* Sync Modal with QR Code */}
@@ -218,7 +245,7 @@ export const Settings: React.FC<SettingsProps> = ({
             
             <div className="bg-white p-4 rounded-3xl inline-block mb-6 shadow-sm border border-slate-100">
                <img 
-                 src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(generateSyncLink())}`} 
+                 src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(syncUrl)}`} 
                  alt="QR Code" 
                  className="w-56 h-56"
                />
@@ -255,7 +282,7 @@ export const Settings: React.FC<SettingsProps> = ({
               <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">Backup Tips</p>
                 <ul className="text-[10px] space-y-1 list-disc pl-4">
-                  <li>Store your <strong>Master Sync Key</strong> in a safe place (like a password manager).</li>
+                  <li>Store your <strong>Master Sync Key</strong> in a safe place.</li>
                   <li>Export a backup file regularly.</li>
                   <li>The app does not use a central cloud—you are the owner of your data.</li>
                 </ul>
