@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Asset, Transaction, TransactionType } from '../types';
-import { ArrowLeft, Plus, History, Trash2, AlertCircle, X, ArrowUpRight, ArrowDownRight, TrendingUp, Edit2, Check, Target, Camera, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, Plus, History, Trash2, AlertCircle, X, ArrowUpRight, ArrowDownRight, TrendingUp, Edit2, Check, Target, Camera, Settings as SettingsIcon, Scale } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 
 interface AssetDetailProps {
@@ -29,7 +28,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
     ticker: asset.ticker,
     name: asset.name,
     category: asset.category,
-    icon: asset.icon
+    icon: asset.icon,
   });
 
   const [txFormData, setTxFormData] = useState({
@@ -141,7 +140,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
       ticker: infoFormData.ticker.toUpperCase(),
       name: infoFormData.name,
       category: infoFormData.category,
-      icon: infoFormData.icon
+      icon: infoFormData.icon,
     });
     setIsEditingInfo(false);
   };
@@ -217,17 +216,9 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
                 <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageChange} />
                 <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">Click to change icon</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Ticker</label>
-                  <input required placeholder="AAPL" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={infoFormData.ticker} onChange={e => setInfoFormData({...infoFormData, ticker: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Category</label>
-                  <select className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={infoFormData.category} onChange={e => setInfoFormData({...infoFormData, category: e.target.value as any})}>
-                    <option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option><option value="Cash">Cash</option>
-                  </select>
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Ticker</label>
+                <input required placeholder="AAPL" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={infoFormData.ticker} onChange={e => setInfoFormData({...infoFormData, ticker: e.target.value})} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Asset Name</label>
@@ -270,13 +261,15 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
                 )}
               </div>
             </div>
-            <button 
-              onClick={() => setShowPurchaseDots(!showPurchaseDots)}
-              className={`flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-bold transition-all ${showPurchaseDots ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
-            >
-              <Target size={12} />
-              <span>DOTS</span>
-            </button>
+            <div className="flex flex-col items-end space-y-1">
+              <button 
+                onClick={() => setShowPurchaseDots(!showPurchaseDots)}
+                className={`flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-bold transition-all ${showPurchaseDots ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+              >
+                <Target size={12} />
+                <span>DOTS</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex space-x-6 items-center border-t border-slate-50 dark:border-slate-800 pt-3 mt-1">

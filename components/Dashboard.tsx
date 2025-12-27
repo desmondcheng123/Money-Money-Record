@@ -13,7 +13,7 @@ import {
   Cell,
   Dot
 } from 'recharts';
-import { TrendingDown, ArrowUpRight, ArrowDownRight, FolderPlus, UserPlus, X, Folder, GripVertical, Trash2, Edit3, Target, PieChart as PieIcon, Cloud, Share2, Download, Globe, AlertCircle } from 'lucide-react';
+import { TrendingDown, ArrowUpRight, ArrowDownRight, FolderPlus, UserPlus, X, Folder, GripVertical, Trash2, Edit3, Target, PieChart as PieIcon, Cloud, Share2, Download, Globe, AlertCircle, Scale } from 'lucide-react';
 import { Portfolio } from './Portfolio';
 
 interface DashboardProps {
@@ -162,9 +162,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const handleExportData = () => {
     const data = {
-      assets: JSON.parse(localStorage.getItem('zeninvest_assets') || '[]'),
-      groups: JSON.parse(localStorage.getItem('zeninvest_groups') || '[]'),
-      transactions: JSON.parse(localStorage.getItem('zeninvest_transactions') || '[]'),
+      assets: assets,
+      groups: groups,
+      transactions: transactions,
       currency: currency,
       exportDate: new Date().toISOString()
     };
@@ -308,7 +308,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Allocation Pie Chart Section */}
+        {/* Diversification Section */}
         {allocationData.length > 0 && (
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex items-center space-x-6">
             <div className="w-1/3 h-32 relative">
@@ -331,24 +331,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <PieIcon size={16} className="text-slate-300" />
+                <Scale size={16} className="text-slate-300" />
               </div>
             </div>
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 space-y-3 overflow-hidden">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Diversification</h3>
-                <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">HEALTHY</span>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Diversification</h3>
+                <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">Actual Allocation</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <div className="grid grid-cols-1 gap-y-1.5">
                 {allocationData.slice(0, 4).map((item, idx) => {
-                  const weight = (item.value / stats.totalValue) * 100;
+                  const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
                   return (
-                    <div key={idx} className="flex items-center justify-between">
+                    <div key={idx} className="flex items-center justify-between space-x-2">
                       <div className="flex items-center space-x-1.5 overflow-hidden">
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className="text-[10px] font-bold text-slate-500 truncate">{item.name}</span>
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate">{item.name}</span>
                       </div>
-                      <span className="text-[9px] font-black text-slate-400">{weight.toFixed(0)}%</span>
+                      <div className="flex items-center space-x-1 flex-shrink-0">
+                         <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -472,7 +474,7 @@ const AssetItem = ({ asset, formatCurrency, onAssetClick, onDragStart, onDropOnA
       </div>
       <div className="text-right min-w-[80px]">
         <div className="flex items-center justify-end space-x-1"><p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{formatCurrency(asset.currentValue)}</p><Edit3 size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
-        <div className={`text-[10px] font-black ${returnAmt >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{returnAmt >= 0 ? '+' : ''}{returnPct.toFixed(1)}%</div>
+        <div className={`text-[10px] font-black ${returnAmt >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{returnPct.toFixed(1)}%</div>
       </div>
     </div>
   );

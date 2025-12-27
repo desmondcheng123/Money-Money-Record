@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Asset } from '../types';
 import { Plus, X, Camera, GripVertical } from 'lucide-react';
@@ -67,16 +66,16 @@ export const Portfolio: React.FC<PortfolioProps> = ({
         <h2 className="text-xl font-bold">{embedded ? 'Assets' : 'My Assets'}</h2>
         <button 
           onClick={() => setIsAdding(true)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-600/20 text-xs font-bold hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all"
+          className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl shadow-md text-[10px] font-bold hover:bg-indigo-700 active:scale-95 transition-all"
         >
-          <Plus size={16} className="inline mr-1" /> Add Asset
+          <Plus size={14} className="inline mr-1" /> Add Asset
         </button>
       </div>
 
       {isAdding && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative animate-in zoom-in duration-300">
-            <button onClick={() => setIsAdding(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
+            <button onClick={() => setIsAdding(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
             <h3 className="text-xl font-bold mb-6">New Asset</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex flex-col items-center mb-6">
@@ -97,8 +96,14 @@ export const Portfolio: React.FC<PortfolioProps> = ({
                   </select>
                 </div>
               </div>
-              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Holding Value ($)</label><input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.currentValue} onChange={e => setFormData({...formData, currentValue: e.target.value})} /></div>
-              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Total Invested ($)</label><input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.totalInvested} onChange={e => setFormData({...formData, totalInvested: e.target.value})} /></div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Current Value ($)</label>
+                <input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.currentValue} onChange={e => setFormData({...formData, currentValue: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Total Invested ($)</label>
+                <input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.totalInvested} onChange={e => setFormData({...formData, totalInvested: e.target.value})} />
+              </div>
               <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all">Create Asset</button>
             </form>
           </div>
@@ -154,7 +159,7 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrop
         {asset.priceHistory && asset.priceHistory.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={asset.priceHistory}>
-              <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="value" stroke={returnAmt >= 0 ? "#10b981" : "#f43f5e"} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : (

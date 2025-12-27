@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Screen } from '../types';
+import { Screen, User } from '../types';
 import { 
   LayoutDashboard, 
   History, 
@@ -12,9 +11,10 @@ interface LayoutProps {
   currentScreen: Screen;
   setCurrentScreen: (screen: Screen) => void;
   isDarkMode: boolean;
+  currentUser: User;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentScreen, setCurrentScreen, isDarkMode }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentScreen, setCurrentScreen, isDarkMode, currentUser }) => {
   const navItems = [
     { id: Screen.DASHBOARD, label: 'Home', icon: LayoutDashboard },
     { id: Screen.ACTIVITY, label: 'Activity', icon: History },
@@ -43,6 +43,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentScreen, setCurr
               <span className="text-[10px] font-medium tracking-tight">{item.label}</span>
             </button>
           ))}
+          <div className="flex-1 flex justify-center py-1">
+             <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                {currentUser.name.slice(0, 2)}
+             </div>
+          </div>
         </div>
       </nav>
     </div>

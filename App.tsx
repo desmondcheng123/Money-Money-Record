@@ -1,46 +1,92 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { Activity } from './components/Activity';
 import { Settings } from './components/Settings';
 import { AssetDetail } from './components/AssetDetail';
-import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint } from './types';
+import { Auth } from './components/Auth';
+import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { INITIAL_ASSETS, INITIAL_TRANSACTIONS } from './mockData';
 
 const App: React.FC = () => {
-  const [assets, setAssets] = useState<Asset[]>(() => {
-    const saved = localStorage.getItem('zeninvest_assets');
-    if (saved) return JSON.parse(saved);
-    return INITIAL_ASSETS.map((a, i) => ({ ...a, order: i, priceHistory: a.priceHistory || [] }));
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('zeninvest_current_user');
+    return saved ? JSON.parse(saved) : null;
   });
 
-  const [groups, setGroups] = useState<AssetGroup[]>(() => {
-    const saved = localStorage.getItem('zeninvest_groups');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const userSuffix = currentUser ? `_${currentUser.id}` : '';
 
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('zeninvest_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
-
-  const [currency, setCurrency] = useState<'USD' | 'MYR'>(() => {
-    return (localStorage.getItem('zeninvest_currency') as 'USD' | 'MYR') || 'USD';
-  });
-
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem('zeninvest_darkmode') === 'true';
-  });
-
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [groups, setGroups] = useState<AssetGroup[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [currency, setCurrency] = useState<'USD' | 'MYR'>('USD');
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.DASHBOARD);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
 
-  useEffect(() => { localStorage.setItem('zeninvest_assets', JSON.stringify(assets)); }, [assets]);
-  useEffect(() => { localStorage.setItem('zeninvest_groups', JSON.stringify(groups)); }, [groups]);
-  useEffect(() => { localStorage.setItem('zeninvest_transactions', JSON.stringify(transactions)); }, [transactions]);
-  useEffect(() => { localStorage.setItem('zeninvest_currency', currency); }, [currency]);
-  useEffect(() => { localStorage.setItem('zeninvest_darkmode', String(isDarkMode)); }, [isDarkMode]);
+  // Load user data on login
+  useEffect(() => {
+    if (currentUser) {
+      const savedAssets = localStorage.getItem(`zeninvest_assets${userSuffix}`);
+      const savedGroups = localStorage.getItem(`zeninvest_groups${userSuffix}`);
+      const savedTransactions = localStorage.getItem(`zeninvest_transactions${userSuffix}`);
+      const savedCurrency = localStorage.getItem(`zeninvest_currency${userSuffix}`) as 'USD' | 'MYR';
+      const savedDark = localStorage.getItem(`zeninvest_darkmode${userSuffix}`) === 'true';
+
+      setAssets(savedAssets ? JSON.parse(savedAssets) : []);
+      setGroups(savedGroups ? JSON.parse(savedGroups) : []);
+      setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+      setCurrency(savedCurrency || 'USD');
+      setIsDarkMode(savedDark || false);
+    }
+  }, [currentUser, userSuffix]);
+
+  // Sync / URL Import Logic
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const syncData = params.get('import');
+    if (syncData) {
+      try {
+        const decoded = JSON.parse(atob(syncData));
+        if (window.confirm(`Found sync data for ${decoded.user?.name || 'an account'}! Import it now?`)) {
+          handleLogin(decoded.user, decoded);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch (e) {
+        console.error("Failed to parse sync data");
+      }
+    }
+  }, []);
+
+  useEffect(() => { 
+    if (currentUser) {
+      localStorage.setItem(`zeninvest_assets${userSuffix}`, JSON.stringify(assets));
+      localStorage.setItem(`zeninvest_groups${userSuffix}`, JSON.stringify(groups));
+      localStorage.setItem(`zeninvest_transactions${userSuffix}`, JSON.stringify(transactions));
+      localStorage.setItem(`zeninvest_currency${userSuffix}`, currency);
+      localStorage.setItem(`zeninvest_darkmode${userSuffix}`, String(isDarkMode));
+    }
+  }, [assets, groups, transactions, currency, isDarkMode, currentUser, userSuffix]);
+
+  const handleLogin = (user: User, importedData?: any) => {
+    setCurrentUser(user);
+    localStorage.setItem('zeninvest_current_user', JSON.stringify(user));
+    
+    if (importedData) {
+      setAssets(importedData.assets);
+      setGroups(importedData.groups || []);
+      setTransactions(importedData.transactions);
+      setCurrency(importedData.currency || 'USD');
+    }
+  };
+
+  const handleLogout = () => {
+    if (window.confirm("Log out of this profile?")) {
+      setCurrentUser(null);
+      localStorage.removeItem('zeninvest_current_user');
+      setCurrentScreen(Screen.DASHBOARD);
+    }
+  };
 
   const syncAssetWithTransactions = useCallback((assetId: string, allTxs: Transaction[]) => {
     setAssets(prevAssets => {
@@ -211,12 +257,16 @@ const App: React.FC = () => {
       setAssets([]);
       setGroups([]);
       setTransactions([]);
-      localStorage.removeItem('zeninvest_assets');
-      localStorage.removeItem('zeninvest_groups');
-      localStorage.removeItem('zeninvest_transactions');
+      localStorage.removeItem(`zeninvest_assets${userSuffix}`);
+      localStorage.removeItem(`zeninvest_groups${userSuffix}`);
+      localStorage.removeItem(`zeninvest_transactions${userSuffix}`);
       setCurrentScreen(Screen.DASHBOARD);
     }
   };
+
+  if (!currentUser) {
+    return <Auth onLogin={handleLogin} />;
+  }
 
   const selectedAsset = assets.find(a => a.id === selectedAssetId);
   const assetTransactions = transactions.filter(t => t.assetId === selectedAssetId);
@@ -227,6 +277,7 @@ const App: React.FC = () => {
         currentScreen={currentScreen} 
         setCurrentScreen={setCurrentScreen}
         isDarkMode={isDarkMode}
+        currentUser={currentUser}
       >
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-24 min-h-screen transition-colors duration-500">
           {currentScreen === Screen.DASHBOARD && (
@@ -255,6 +306,11 @@ const App: React.FC = () => {
               isDarkMode={isDarkMode} 
               setIsDarkMode={setIsDarkMode} 
               onResetData={handleResetData}
+              assets={assets}
+              transactions={transactions}
+              groups={groups}
+              currentUser={currentUser}
+              onLogout={handleLogout}
             />
           )}
           {currentScreen === Screen.ASSET_DETAIL && selectedAsset && (

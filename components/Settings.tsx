@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { Asset, AssetGroup, Transaction, User } from '../types';
 import { 
   Globe, 
   Moon, 
@@ -14,10 +15,13 @@ import {
   Check,
   QrCode,
   Lock,
-  Github,
+  Smartphone,
+  ShieldAlert,
+  Save,
   Rocket,
   Zap,
-  AlertCircle
+  LogOut,
+  Key
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -26,21 +30,28 @@ interface SettingsProps {
   isDarkMode: boolean;
   setIsDarkMode: (v: boolean) => void;
   onResetData: () => void;
+  assets: Asset[];
+  transactions: Transaction[];
+  groups: AssetGroup[];
+  currentUser: User;
+  onLogout: () => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDarkMode, setIsDarkMode, onResetData }) => {
+export const Settings: React.FC<SettingsProps> = ({ 
+  currency, setCurrency, isDarkMode, setIsDarkMode, onResetData, assets, transactions, groups, currentUser, onLogout 
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showInstallGuide, setShowInstallGuide] = useState(false);
-  const [showHostingGuide, setShowHostingGuide] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleExport = () => {
     const data = {
-      assets: JSON.parse(localStorage.getItem('zeninvest_assets') || '[]'),
-      groups: JSON.parse(localStorage.getItem('zeninvest_groups') || '[]'),
-      transactions: JSON.parse(localStorage.getItem('zeninvest_transactions') || '[]'),
-      currency: localStorage.getItem('zeninvest_currency') || 'USD',
+      assets,
+      groups,
+      transactions,
+      currency,
+      user: currentUser,
       exportDate: new Date().toISOString()
     };
     
@@ -48,7 +59,7 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `portfolio-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `money-money-${currentUser.name}-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -62,11 +73,12 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
       try {
         const data = JSON.parse(event.target?.result as string);
         if (data.assets && data.transactions) {
-          if (window.confirm("Importing will overwrite your current data. Continue?")) {
-            localStorage.setItem('zeninvest_assets', JSON.stringify(data.assets));
-            localStorage.setItem('zeninvest_groups', JSON.stringify(data.groups || []));
-            localStorage.setItem('zeninvest_transactions', JSON.stringify(data.transactions));
-            localStorage.setItem('zeninvest_currency', data.currency || 'USD');
+          if (window.confirm("Importing will overwrite your current profile data. Continue?")) {
+            const suffix = `_${currentUser.id}`;
+            localStorage.setItem(`zeninvest_assets${suffix}`, JSON.stringify(data.assets));
+            localStorage.setItem(`zeninvest_groups${suffix}`, JSON.stringify(data.groups || []));
+            localStorage.setItem(`zeninvest_transactions${suffix}`, JSON.stringify(data.transactions));
+            localStorage.setItem(`zeninvest_currency${suffix}`, data.currency || 'USD');
             window.location.reload();
           }
         } else {
@@ -79,8 +91,24 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
     reader.readAsText(file);
   };
 
+  const generateSyncLink = () => {
+    const data = { assets, transactions, groups, currency, user: currentUser };
+    const encoded = btoa(JSON.stringify(data));
+    const baseUrl = window.location.href.split('?')[0];
+    return `${baseUrl}?import=${encoded}`;
+  };
+
+  const copySyncKey = () => {
+    const data = { assets, transactions, groups, currency, user: currentUser };
+    const encoded = btoa(JSON.stringify(data));
+    navigator.clipboard.writeText(encoded);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const link = generateSyncLink();
+    navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -102,7 +130,7 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
       </div>
       <div className="flex items-center space-x-2">
         {value && <span className={`text-sm font-medium ${variant === 'danger' ? 'text-rose-600' : 'text-indigo-600'}`}>{value}</span>}
-        {copied && label === "Copy Link" ? <Check size={16} className="text-emerald-500" /> : <ChevronRight size={16} className={variant === 'danger' ? 'text-rose-300' : 'text-slate-300'} />}
+        {variant !== 'danger' && <ChevronRight size={16} className="text-slate-300" />}
       </div>
     </button>
   );
@@ -110,47 +138,43 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500 pb-12">
       <div className="flex justify-between items-center px-1">
-        <h2 className="text-2xl font-bold">More</h2>
-        <div className="flex items-center space-x-1 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-full text-[10px] font-bold uppercase tracking-tighter">
-          <ShieldCheck size={12} className="mr-1" />
-          <span>Privacy Secured</span>
+        <div className="flex items-center space-x-3">
+           <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-black">{currentUser.name[0].toUpperCase()}</div>
+           <div>
+              <h2 className="text-2xl font-bold">{currentUser.name}</h2>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logged In Profile</p>
+           </div>
         </div>
+        <button 
+          onClick={() => onLogout()} 
+          className="p-3 text-rose-500 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
+          title="Logout"
+        >
+           <LogOut size={20} />
+        </button>
       </div>
 
-      <section className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-600/20">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-3">
-            <Rocket size={24} className="text-white" />
-            <h3 className="font-bold text-lg">Fix Blank Page</h3>
-          </div>
-          <div className="px-2 py-0.5 bg-white/20 rounded-md text-[8px] font-bold uppercase tracking-widest">Guide</div>
+      {/* Persistence Advice Card */}
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm">
+        <div className="flex items-start space-x-4 mb-4">
+           <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl text-indigo-600">
+              <ShieldAlert size={24} />
+           </div>
+           <div>
+              <h3 className="font-bold text-slate-800 dark:text-slate-100">Cross-Device Sync</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">To use this app on another PC, you need your <strong>Master Sync Key</strong>.</p>
+           </div>
         </div>
-        <p className="text-xs text-indigo-100 leading-relaxed mb-4">
-          GitHub Pages shows a blank page because it doesn't know how to read React code. <strong>Vercel</strong> fixes this automatically.
-        </p>
-        <button 
-          onClick={() => setShowHostingGuide(true)}
-          className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-lg hover:bg-indigo-50 active:scale-95 transition-all"
-        >
-          <Zap size={14} className="fill-indigo-600" />
-          <span>Deploy to Vercel (Free)</span>
-        </button>
-      </section>
-
-      <section>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Public Sharing</p>
-        <SettingItem 
-          icon={QrCode} 
-          label="Scan to Phone" 
-          value="View QR" 
-          onClick={() => setShowInstallGuide(true)} 
-        />
-        <SettingItem 
-          icon={Share2} 
-          label="Copy Link" 
-          value={copied ? "Copied!" : "Copy URL"} 
-          onClick={copyLink} 
-        />
+        <div className="grid grid-cols-2 gap-3">
+           <button onClick={copySyncKey} className={`flex items-center justify-center space-x-2 py-3 font-bold rounded-2xl text-[11px] shadow-lg transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white shadow-indigo-600/20'}`}>
+              {copied ? <Check size={14} /> : <Key size={14} />}
+              <span>{copied ? 'Key Copied!' : 'Copy Sync Key'}</span>
+           </button>
+           <button onClick={() => setShowSyncModal(true)} className="flex items-center justify-center space-x-2 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-[11px] active:scale-95 transition-all">
+              <Smartphone size={14} />
+              <span>QR Sync</span>
+           </button>
+        </div>
       </section>
 
       <section>
@@ -172,82 +196,69 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
       <section>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Data & Portability</p>
         <input type="file" className="hidden" ref={fileInputRef} onChange={handleImport} accept=".json" />
-        <SettingItem icon={FileUp} label="Import Data" value="Upload .json" onClick={() => fileInputRef.current?.click()} />
-        <SettingItem icon={Download} label="Export Data" value="Save .json" onClick={handleExport} />
-        <SettingItem icon={Lock} label="Privacy FAQ" onClick={() => setShowPrivacyNotice(true)} />
+        <SettingItem icon={FileUp} label="Import from File" value="Select .json" onClick={() => fileInputRef.current?.click()} />
+        <SettingItem icon={Download} label="Export Backup" value="Save .json" onClick={handleExport} />
+        <SettingItem icon={Lock} label="How is data stored?" onClick={() => setShowPrivacyNotice(true)} />
       </section>
 
       <section>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">System</p>
         <SettingItem icon={RefreshCcw} label="Reset Portfolio" variant="danger" onClick={onResetData} />
-        <SettingItem icon={Info} label="App Version" value="v1.6.0" />
+        <SettingItem icon={Info} label="App Version" value="v2.0.0" />
       </section>
 
-      {/* Hosting/Public Guide Modal */}
-      {showHostingGuide && (
+      {/* Sync Modal with QR Code */}
+      {showSyncModal && (
         <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setShowHostingGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
-            <div className="bg-indigo-100 dark:bg-indigo-900/30 w-16 h-16 rounded-3xl flex items-center justify-center mb-6">
-               <Rocket size={32} className="text-indigo-600" />
-            </div>
-            <h3 className="text-2xl font-bold mb-2">Step-by-Step Vercel</h3>
-            <p className="text-sm text-slate-500 mb-6 leading-relaxed">Since this app uses TypeScript (.tsx), standard GitHub Pages won't work. Follow this:</p>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative text-center">
+            <button onClick={() => setShowSyncModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
+            <Smartphone size={40} className="text-indigo-600 mx-auto mb-2" />
+            <h3 className="text-xl font-bold mb-2">Sync to Phone</h3>
+            <p className="text-[10px] text-slate-500 mb-6 uppercase font-bold tracking-widest">Scan with your mobile device</p>
             
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl">
-                <h4 className="font-bold text-slate-800 dark:text-white flex items-center text-sm">
-                  <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mr-2">1</div>
-                  Upload to GitHub
-                </h4>
-                <p className="text-xs text-slate-500 mt-2">
-                  Upload all files (including the new <code className="text-indigo-600">package.json</code>) to a <strong>Public</strong> GitHub repository.
-                </p>
-              </div>
-
-              <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-3xl">
-                <h4 className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center text-sm">
-                  <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mr-2">2</div>
-                  Connect to Vercel
-                </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
-                  Go to <strong>Vercel.com</strong>, click "Add New" &gt; "Project", and select your GitHub repo.
-                </p>
-              </div>
-
-              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-3xl">
-                <h4 className="font-bold text-slate-800 dark:text-white flex items-center text-sm">
-                  <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mr-2">3</div>
-                  Deploy
-                </h4>
-                <p className="text-xs text-slate-500 mt-2">
-                  Vercel will see the <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">package.json</code> and build the app automatically. You'll get a real link in seconds!
-                </p>
-              </div>
-
-              <div className="flex items-start space-x-3 text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-4 rounded-3xl border border-amber-200/50">
-                <AlertCircle size={18} className="shrink-0" />
-                <p className="text-[10px] font-bold uppercase leading-tight">Do not use GitHub Pages settings for this app. It only supports plain HTML.</p>
-              </div>
+            <div className="bg-white p-4 rounded-3xl inline-block mb-6 shadow-sm border border-slate-100">
+               <img 
+                 src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(generateSyncLink())}`} 
+                 alt="QR Code" 
+                 className="w-56 h-56"
+               />
             </div>
 
-            <button onClick={() => setShowHostingGuide(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">I'll use Vercel now</button>
+            <div className="text-left space-y-4 mb-6">
+               <div className="flex items-start space-x-3">
+                 <div className="w-5 h-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</div>
+                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Scan this QR code with your phone's camera.</p>
+               </div>
+               <div className="flex items-start space-x-3">
+                 <div className="w-5 h-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</div>
+                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Tap the link to open the app and confirm import.</p>
+               </div>
+            </div>
+
+            <button onClick={copyLink} className={`w-full py-4 font-bold rounded-2xl flex items-center justify-center space-x-2 border transition-all ${copied ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'}`}>
+               {copied ? <Check size={16} /> : <Share2 size={16} />}
+               <span>{copied ? 'Link Copied!' : 'Copy Sync Link'}</span>
+            </button>
           </div>
         </div>
       )}
 
-      {/* Privacy Notice Modal */}
+      {/* Privacy FAQ Modal */}
       {showPrivacyNotice && (
         <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative">
-            <button onClick={() => setShowPrivacyNotice(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
+            <button onClick={() => setShowPrivacyNotice(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
             <Lock size={40} className="text-indigo-600 mb-4" />
-            <h3 className="text-xl font-bold mb-4">Privacy Built-in</h3>
+            <h3 className="text-xl font-bold mb-4">Your Data, Your Control</h3>
             <div className="space-y-4 text-sm text-slate-500 leading-relaxed">
-              <p>Your data is stored <strong>locally</strong>. Even if your GitHub repository is Public, your money records are not.</p>
+              <p>Everything is stored locally on this machine under your User ID (<strong>{currentUser.id}</strong>).</p>
               <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">The "Engine" vs "The Fuel"</p>
-                <p className="text-xs mt-1">GitHub holds the engine (the app code). Your browser holds the fuel (your portfolio data). No one can see your fuel just by looking at the engine.</p>
+                <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">Backup Tips</p>
+                <ul className="text-[10px] space-y-1 list-disc pl-4">
+                  <li>Store your <strong>Master Sync Key</strong> in a safe place (like a password manager).</li>
+                  <li>Export a backup file regularly.</li>
+                  <li>The app does not use a central cloud—you are the owner of your data.</li>
+                </ul>
               </div>
             </div>
             <button onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Understood</button>
@@ -255,45 +266,9 @@ export const Settings: React.FC<SettingsProps> = ({ currency, setCurrency, isDar
         </div>
       )}
 
-      {/* QR Code / Install Modal */}
-      {showInstallGuide && (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative text-center">
-            <button onClick={() => setShowInstallGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
-            <h3 className="text-xl font-bold mb-2">Sync to Mobile</h3>
-            <p className="text-[10px] text-slate-500 mb-6 uppercase font-bold tracking-widest">Only works if your link is live!</p>
-            
-            <div className="bg-white p-4 rounded-3xl inline-block mb-6 shadow-sm border border-slate-100">
-               <img 
-                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.href)}`} 
-                 alt="QR Code" 
-                 className="w-48 h-48"
-               />
-            </div>
-
-            <div className="text-left space-y-4">
-               <div className="flex items-start space-x-3">
-                 <div className="w-5 h-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</div>
-                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Scan the code above.</p>
-               </div>
-               <div className="flex items-start space-x-3">
-                 <div className="w-5 h-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</div>
-                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Tap <strong>Share</strong> (iPhone) or <strong>Menu</strong> (Android).</p>
-               </div>
-               <div className="flex items-start space-x-3">
-                 <div className="w-5 h-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
-                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Select <strong>'Add to Home Screen'</strong>.</p>
-               </div>
-            </div>
-
-            <button onClick={() => setShowInstallGuide(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Close</button>
-          </div>
-        </div>
-      )}
-
       <div className="p-8 text-center opacity-30">
         <h3 className="font-black text-2xl italic text-slate-900 dark:text-white uppercase tracking-tighter">Money Money Record</h3>
-        <p className="text-xs font-medium">Invest for the long run.</p>
+        <p className="text-xs font-medium">Safe & Sound.</p>
       </div>
     </div>
   );

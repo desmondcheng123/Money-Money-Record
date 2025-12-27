@@ -1,10 +1,10 @@
-
 export enum Screen {
   DASHBOARD = 'DASHBOARD',
   ALLOCATION = 'ALLOCATION',
   ACTIVITY = 'ACTIVITY',
   SETTINGS = 'SETTINGS',
-  ASSET_DETAIL = 'ASSET_DETAIL'
+  ASSET_DETAIL = 'ASSET_DETAIL',
+  AUTH = 'AUTH'
 }
 
 export enum TransactionType {
@@ -12,6 +12,12 @@ export enum TransactionType {
   SELL = 'SELL',
   DIVIDEND = 'DIVIDEND',
   PRICE_UPDATE = 'PRICE_UPDATE'
+}
+
+export interface User {
+  id: string;
+  name: string;
+  lastLogin: string;
 }
 
 export interface AssetGroup {
