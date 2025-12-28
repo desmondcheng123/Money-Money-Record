@@ -8,7 +8,7 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Safety Guard for Supabase Initialization
+// Initialize Supabase safely
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
 const supabase: SupabaseClient | null = supabaseUrl ? createClient(supabaseUrl, supabaseAnonKey) : null;
@@ -30,11 +30,10 @@ const App: React.FC = () => {
   const [syncState, setSyncState] = useState<'IDLE' | 'SAVING' | 'ERROR'>('IDLE');
   const [lastSyncTimestamp, setLastSyncTimestamp] = useState<string | null>(new Date().toISOString());
 
-  // FETCH DATA (Cloud or Local Fallback)
+  // FETCH DATA
   const fetchData = useCallback(async (userId: string) => {
     setSyncState('SAVING');
     
-    // Attempt Cloud Fetch if Supabase is configured
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -49,22 +48,24 @@ const App: React.FC = () => {
           setTransactions(data.transactions || []);
           setCurrency(data.currency || 'USD');
           setSyncState('IDLE');
+          setLastSyncTimestamp(data.updated_at || new Date().toISOString());
           return;
         }
       } catch (err) {
-        console.warn("Supabase fetch failed, trying local storage...");
+        console.warn("Cloud fetch failed, using local storage cache.");
       }
     }
 
-    // Local Fallback
     const suffix = `_${userId}`;
     const savedAssets = localStorage.getItem(`zeninvest_assets${suffix}`);
     const savedGroups = localStorage.getItem(`zeninvest_groups${suffix}`);
     const savedTransactions = localStorage.getItem(`zeninvest_transactions${suffix}`);
+    const savedCurrency = localStorage.getItem(`zeninvest_currency${suffix}`);
     
     setAssets(savedAssets ? JSON.parse(savedAssets) : []);
     setGroups(savedGroups ? JSON.parse(savedGroups) : []);
     setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+    if (savedCurrency) setCurrency(savedCurrency as any);
     setSyncState('IDLE');
   }, []);
 
@@ -74,21 +75,18 @@ const App: React.FC = () => {
     }
   }, [currentUser, fetchData]);
 
-  // AUTO-SAVE (Cloud + Local)
+  // AUTO-SAVE
   const persistChanges = useCallback(async () => {
     if (!currentUser) return;
     
     setSyncState('SAVING');
     
-    // Always save to Local first for speed and offline support
     const suffix = `_${currentUser.id}`;
     localStorage.setItem(`zeninvest_assets${suffix}`, JSON.stringify(assets));
     localStorage.setItem(`zeninvest_groups${suffix}`, JSON.stringify(groups));
     localStorage.setItem(`zeninvest_transactions${suffix}`, JSON.stringify(transactions));
     localStorage.setItem(`zeninvest_currency${suffix}`, currency);
-    localStorage.setItem(`zeninvest_darkmode${suffix}`, String(isDarkMode));
 
-    // Attempt Cloud Sync if configured
     if (supabase) {
       try {
         const { error } = await supabase
@@ -105,24 +103,22 @@ const App: React.FC = () => {
         if (error) throw error;
         setSyncState('IDLE');
       } catch (err) {
-        console.error("Cloud Sync Error:", err);
+        console.error("Cloud Sync failed:", err);
         setSyncState('ERROR');
       }
     } else {
-      // If no Supabase, we are just in "Local Mode", so we stay IDLE after local save
       setTimeout(() => setSyncState('IDLE'), 300);
     }
     
     setLastSyncTimestamp(new Date().toISOString());
-  }, [assets, groups, transactions, currency, isDarkMode, currentUser]);
+  }, [assets, groups, transactions, currency, currentUser]);
 
-  // Debounced auto-save
   useEffect(() => {
     const timer = setTimeout(() => {
       persistChanges();
-    }, 1000);
+    }, 1500);
     return () => clearTimeout(timer);
-  }, [assets, groups, transactions, currency, isDarkMode, persistChanges]);
+  }, [assets, groups, transactions, currency, persistChanges]);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -130,10 +126,13 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    if (window.confirm("Log out? Your data is saved locally and in the cloud.")) {
+    if (window.confirm("Log out? Your cloud data is safe.")) {
       setCurrentUser(null);
       localStorage.removeItem('zeninvest_current_user');
       setCurrentScreen(Screen.DASHBOARD);
+      setAssets([]);
+      setTransactions([]);
+      setGroups([]);
     }
   };
 
@@ -302,7 +301,7 @@ const App: React.FC = () => {
   };
 
   const handleResetData = () => {
-    if (window.confirm("Delete all data? This cannot be undone.")) {
+    if (window.confirm("This will permanently wipe ALL your cloud data. Continue?")) {
       setAssets([]);
       setGroups([]);
       setTransactions([]);
