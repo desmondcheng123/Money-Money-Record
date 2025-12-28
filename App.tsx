@@ -8,10 +8,14 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Initialize Supabase safely
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-const supabase: SupabaseClient | null = supabaseUrl ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Robust environment variable detection
+const getEnv = (key: string): string => {
+  return (import.meta as any).env?.[key] || (window as any).process?.env?.[key] || '';
+};
+
+const supabaseUrl = getEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
+const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -32,6 +36,17 @@ const App: React.FC = () => {
 
   // FETCH DATA
   const fetchData = useCallback(async (userId: string) => {
+    if (userId === 'demo_user') {
+      setSyncState('IDLE');
+      const savedAssets = localStorage.getItem(`zeninvest_assets_demo`);
+      const savedGroups = localStorage.getItem(`zeninvest_groups_demo`);
+      const savedTransactions = localStorage.getItem(`zeninvest_transactions_demo`);
+      setAssets(savedAssets ? JSON.parse(savedAssets) : []);
+      setGroups(savedGroups ? JSON.parse(savedGroups) : []);
+      setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+      return;
+    }
+
     setSyncState('SAVING');
     
     if (supabase) {
@@ -81,13 +96,13 @@ const App: React.FC = () => {
     
     setSyncState('SAVING');
     
-    const suffix = `_${currentUser.id}`;
+    const suffix = currentUser.id === 'demo_user' ? '_demo' : `_${currentUser.id}`;
     localStorage.setItem(`zeninvest_assets${suffix}`, JSON.stringify(assets));
     localStorage.setItem(`zeninvest_groups${suffix}`, JSON.stringify(groups));
     localStorage.setItem(`zeninvest_transactions${suffix}`, JSON.stringify(transactions));
     localStorage.setItem(`zeninvest_currency${suffix}`, currency);
 
-    if (supabase) {
+    if (supabase && currentUser.id !== 'demo_user') {
       try {
         const { error } = await supabase
           .from('portfolios')

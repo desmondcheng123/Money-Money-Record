@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, CloudCheck, CloudOff } from 'lucide-react';
+import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, CloudCheck, CloudOff, AlertCircle } from 'lucide-react';
 import { User } from '../types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Initialize Supabase
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-const supabase: SupabaseClient | null = supabaseUrl ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Robust environment variable detection
+const getEnv = (key: string): string => {
+  // Check common locations for environment variables in Vite/Web environments
+  return (import.meta as any).env?.[key] || (window as any).process?.env?.[key] || '';
+};
+
+const supabaseUrl = getEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
+const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -19,14 +24,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isCloudReady, setIsCloudReady] = useState(!!supabase);
+  
+  // Detailed connection status
+  const isCloudReady = !!supabase;
+  const hasUrl = !!supabaseUrl;
+  const hasKey = !!supabaseAnonKey;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
     setError('');
 
-    // Demo Mode if Supabase is not configured or keys are missing
+    // Demo Mode Fallback
     if (!supabase) {
       setTimeout(() => {
         onLogin({ 
@@ -90,25 +99,32 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
              {isCloudReady ? (
                <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-full border border-emerald-100 dark:border-emerald-800">
                   <CloudCheck size={12} className="cloud-live" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Supabase Cloud Active</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Supabase Cloud Ready</span>
                </div>
              ) : (
                <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-full border border-amber-100 dark:border-amber-800">
                   <CloudOff size={12} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Local Mode Only</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Local-Only Mode</span>
                </div>
              )}
           </div>
         </div>
 
         {!isCloudReady && (
-          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-5 rounded-[2rem] shadow-sm flex items-start space-x-3">
-             <Info className="text-amber-500 shrink-0 mt-0.5" size={18} />
-             <div className="space-y-1">
-                <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Cloud Setup Incomplete</p>
-                <p className="text-[10px] text-amber-700/70 dark:text-amber-300/50 leading-relaxed">
-                   The app can't find your Supabase keys. You can use it as a "Guest", but your data will only stay on this specific device. 
-                </p>
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-5 rounded-[2rem] shadow-sm space-y-3">
+             <div className="flex items-start space-x-3">
+                <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                <div className="space-y-1">
+                   <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Cloud Configuration Missing</p>
+                   <p className="text-[10px] text-amber-700/70 dark:text-amber-300/50 leading-relaxed">
+                      Missing: {!hasUrl && 'VITE_SUPABASE_URL'} {!hasKey && 'VITE_SUPABASE_ANON_KEY'}. 
+                      The app will run as a guest and save data to this browser only.
+                   </p>
+                </div>
+             </div>
+             <div className="p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                <p className="text-[9px] font-bold text-slate-400 uppercase text-center">Troubleshooting</p>
+                <p className="text-[9px] text-slate-500 text-center mt-1 italic">Set keys in Vercel Settings → Environment Variables, then Redeploy.</p>
              </div>
           </div>
         )}
@@ -124,13 +140,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold flex items-center">
                 {mode === 'LOGIN' ? <LogIn size={20} className="mr-2 text-indigo-500" /> : <UserPlus size={20} className="mr-2 text-indigo-500" />}
-                {mode === 'LOGIN' ? 'Welcome Back' : 'Create Account'}
+                {mode === 'LOGIN' ? 'Welcome Back' : 'Join the Vault'}
               </h2>
             </div>
 
             {mode === 'SIGNUP' && (
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Display Name</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">What should we call you?</label>
                 <div className="relative">
                   <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input required placeholder="Desmond" className="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all" value={name} onChange={e => setName(e.target.value)} />
@@ -162,12 +178,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             )}
 
             <button type="submit" disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-2 active:scale-95 hover:bg-indigo-700 transition-all mt-4">
-              <span>{mode === 'LOGIN' ? (isCloudReady ? 'Sign in with Cloud' : 'Enter as Guest') : 'Create Cloud Profile'}</span>
+              <span>{mode === 'LOGIN' ? (isCloudReady ? 'Secure Cloud Login' : 'Enter as Guest') : 'Initialize Cloud Vault'}</span>
               <ArrowRight size={18} />
             </button>
 
             <button type="button" onClick={() => setMode(mode === 'LOGIN' ? 'SIGNUP' : 'LOGIN')} className="w-full py-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-indigo-500 transition-colors">
-              {mode === 'LOGIN' ? "Need a cloud account? Sign Up" : "Already have an account? Login"}
+              {mode === 'LOGIN' ? "Need to start a new vault? Sign Up" : "Already have a vault? Login"}
             </button>
           </form>
         </div>
@@ -175,7 +191,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         <div className="flex items-center justify-center space-x-8 opacity-40">
            <div className="flex items-center space-x-2">
               <ShieldCheck size={16} className="text-emerald-500" />
-              <span className="text-[9px] font-black uppercase tracking-widest">AES-256 Encrypted</span>
+              <span className="text-[9px] font-black uppercase tracking-widest">AES-256 Cloud</span>
            </div>
            <div className="flex items-center space-x-2">
               <Sparkles size={16} className="text-indigo-500" />
