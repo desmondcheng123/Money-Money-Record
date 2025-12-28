@@ -6,29 +6,18 @@ import { Settings } from './components/Settings';
 import { AssetDetail } from './components/AssetDetail';
 import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
-import { INITIAL_ASSETS, INITIAL_TRANSACTIONS } from './mockData';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Utility for decompression
-async function decompressData(base64: string) {
-  try {
-    const binary = atob(base64);
-    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const decompressed = await new Response(stream).text();
-    return JSON.parse(decompressed);
-  } catch (e) {
-    // Fallback for old non-compressed keys
-    return JSON.parse(atob(base64));
-  }
-}
+// Safety Guard for Supabase Initialization
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+const supabase: SupabaseClient | null = supabaseUrl ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('zeninvest_current_user');
     return saved ? JSON.parse(saved) : null;
   });
-
-  const userSuffix = currentUser ? `_${currentUser.id}` : '';
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [groups, setGroups] = useState<AssetGroup[]>([]);
@@ -37,72 +26,114 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.DASHBOARD);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  
+  const [syncState, setSyncState] = useState<'IDLE' | 'SAVING' | 'ERROR'>('IDLE');
+  const [lastSyncTimestamp, setLastSyncTimestamp] = useState<string | null>(new Date().toISOString());
 
-  // Load user data on login
-  useEffect(() => {
-    if (currentUser) {
-      const savedAssets = localStorage.getItem(`zeninvest_assets${userSuffix}`);
-      const savedGroups = localStorage.getItem(`zeninvest_groups${userSuffix}`);
-      const savedTransactions = localStorage.getItem(`zeninvest_transactions${userSuffix}`);
-      const savedCurrency = localStorage.getItem(`zeninvest_currency${userSuffix}`) as 'USD' | 'MYR';
-      const savedDark = localStorage.getItem(`zeninvest_darkmode${userSuffix}`) === 'true';
+  // FETCH DATA (Cloud or Local Fallback)
+  const fetchData = useCallback(async (userId: string) => {
+    setSyncState('SAVING');
+    
+    // Attempt Cloud Fetch if Supabase is configured
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('portfolios')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
 
-      setAssets(savedAssets ? JSON.parse(savedAssets) : []);
-      setGroups(savedGroups ? JSON.parse(savedGroups) : []);
-      setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
-      setCurrency(savedCurrency || 'USD');
-      setIsDarkMode(savedDark || false);
-    }
-  }, [currentUser, userSuffix]);
-
-  // Sync / URL Import Logic
-  useEffect(() => {
-    const checkImport = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const syncData = params.get('import');
-      if (syncData) {
-        try {
-          const decoded = await decompressData(syncData);
-          if (window.confirm(`Found sync data for ${decoded.user?.name || 'an account'}! Import it now?`)) {
-            handleLogin(decoded.user, decoded);
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        } catch (e) {
-          console.error("Failed to parse sync data");
+        if (data && !error) {
+          setAssets(data.assets || []);
+          setGroups(data.groups || []);
+          setTransactions(data.transactions || []);
+          setCurrency(data.currency || 'USD');
+          setSyncState('IDLE');
+          return;
         }
+      } catch (err) {
+        console.warn("Supabase fetch failed, trying local storage...");
       }
-    };
-    checkImport();
+    }
+
+    // Local Fallback
+    const suffix = `_${userId}`;
+    const savedAssets = localStorage.getItem(`zeninvest_assets${suffix}`);
+    const savedGroups = localStorage.getItem(`zeninvest_groups${suffix}`);
+    const savedTransactions = localStorage.getItem(`zeninvest_transactions${suffix}`);
+    
+    setAssets(savedAssets ? JSON.parse(savedAssets) : []);
+    setGroups(savedGroups ? JSON.parse(savedGroups) : []);
+    setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+    setSyncState('IDLE');
   }, []);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(`zeninvest_assets${userSuffix}`, JSON.stringify(assets));
-      localStorage.setItem(`zeninvest_groups${userSuffix}`, JSON.stringify(groups));
-      localStorage.setItem(`zeninvest_transactions${userSuffix}`, JSON.stringify(transactions));
-      localStorage.setItem(`zeninvest_currency${userSuffix}`, currency);
-      localStorage.setItem(`zeninvest_darkmode${userSuffix}`, String(isDarkMode));
+      fetchData(currentUser.id);
     }
-  }, [assets, groups, transactions, currency, isDarkMode, currentUser, userSuffix]);
+  }, [currentUser, fetchData]);
 
-  const handleLogin = (user: User, importedData?: any) => {
+  // AUTO-SAVE (Cloud + Local)
+  const persistChanges = useCallback(async () => {
+    if (!currentUser) return;
+    
+    setSyncState('SAVING');
+    
+    // Always save to Local first for speed and offline support
+    const suffix = `_${currentUser.id}`;
+    localStorage.setItem(`zeninvest_assets${suffix}`, JSON.stringify(assets));
+    localStorage.setItem(`zeninvest_groups${suffix}`, JSON.stringify(groups));
+    localStorage.setItem(`zeninvest_transactions${suffix}`, JSON.stringify(transactions));
+    localStorage.setItem(`zeninvest_currency${suffix}`, currency);
+    localStorage.setItem(`zeninvest_darkmode${suffix}`, String(isDarkMode));
+
+    // Attempt Cloud Sync if configured
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('portfolios')
+          .upsert({
+            user_id: currentUser.id,
+            assets,
+            groups,
+            transactions,
+            currency,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
+
+        if (error) throw error;
+        setSyncState('IDLE');
+      } catch (err) {
+        console.error("Cloud Sync Error:", err);
+        setSyncState('ERROR');
+      }
+    } else {
+      // If no Supabase, we are just in "Local Mode", so we stay IDLE after local save
+      setTimeout(() => setSyncState('IDLE'), 300);
+    }
+    
+    setLastSyncTimestamp(new Date().toISOString());
+  }, [assets, groups, transactions, currency, isDarkMode, currentUser]);
+
+  // Debounced auto-save
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      persistChanges();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [assets, groups, transactions, currency, isDarkMode, persistChanges]);
+
+  const handleLogin = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('zeninvest_current_user', JSON.stringify(user));
-    
-    if (importedData) {
-      setAssets(importedData.assets || []);
-      setGroups(importedData.groups || []);
-      setTransactions(importedData.transactions || []);
-      setCurrency(importedData.currency || 'USD');
-    }
   };
 
   const handleLogout = () => {
-    if (window.confirm("Log out of this profile?")) {
+    if (window.confirm("Log out? Your data is saved locally and in the cloud.")) {
       setCurrentUser(null);
       localStorage.removeItem('zeninvest_current_user');
       setCurrentScreen(Screen.DASHBOARD);
-      setSelectedAssetId(null);
     }
   };
 
@@ -271,14 +302,11 @@ const App: React.FC = () => {
   };
 
   const handleResetData = () => {
-    if (window.confirm("Are you sure you want to reset all portfolio data? This cannot be undone.")) {
+    if (window.confirm("Delete all data? This cannot be undone.")) {
       setAssets([]);
       setGroups([]);
       setTransactions([]);
-      localStorage.removeItem(`zeninvest_assets${userSuffix}`);
-      localStorage.removeItem(`zeninvest_groups${userSuffix}`);
-      localStorage.removeItem(`zeninvest_transactions${userSuffix}`);
-      setCurrentScreen(Screen.DASHBOARD);
+      persistChanges();
     }
   };
 
@@ -312,6 +340,8 @@ const App: React.FC = () => {
               onMoveToGroup={handleMoveToGroup}
               onReorderAssets={handleReorderAssets}
               transactions={transactions}
+              syncState={syncState}
+              lastSyncTimestamp={lastSyncTimestamp}
             />
           )}
           {currentScreen === Screen.ACTIVITY && (
@@ -329,6 +359,7 @@ const App: React.FC = () => {
               groups={groups}
               currentUser={currentUser}
               onLogout={handleLogout}
+              syncState={syncState}
             />
           )}
           {currentScreen === Screen.ASSET_DETAIL && selectedAsset && (

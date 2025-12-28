@@ -10,10 +10,9 @@ import {
   Area,
   PieChart,
   Pie,
-  Cell,
-  Dot
+  Cell
 } from 'recharts';
-import { TrendingDown, ArrowUpRight, ArrowDownRight, FolderPlus, UserPlus, X, Folder, GripVertical, Trash2, Edit3, Target, PieChart as PieIcon, Cloud, Share2, Download, Globe, AlertCircle, Scale } from 'lucide-react';
+import { TrendingDown, ArrowUpRight, ArrowDownRight, FolderPlus, X, Folder, GripVertical, Trash2, Edit3, Target, Scale, Cloud, Share2, Download, AlertCircle, RefreshCw, Mail, CheckCircle2 } from 'lucide-react';
 import { Portfolio } from './Portfolio';
 
 interface DashboardProps {
@@ -29,17 +28,17 @@ interface DashboardProps {
   onMoveToGroup: (assetId: string, groupId?: string) => void;
   onReorderAssets: (assets: Asset[]) => void;
   transactions: any[];
+  syncState: 'IDLE' | 'SAVING' | 'ERROR';
+  lastSyncTimestamp: string | null;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
-  stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions
+  stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions, syncState, lastSyncTimestamp
 }) => {
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [showPurchaseDots, setShowPurchaseDots] = useState(true);
   const [sliderVal, setSliderVal] = useState(100);
-  const [copied, setCopied] = useState(false);
   
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null | 'unassigned'>(null);
@@ -87,7 +86,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [portfolioHistory, stats.totalValue]);
 
   const recentChangeAmt = stats.totalValue - lastValue;
-  const recentChangePct = lastValue > 0 ? (recentChangeAmt / lastValue) * 100 : 0;
 
   const allocationData = useMemo(() => {
     return assets
@@ -154,29 +152,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleExportData = () => {
-    const data = {
-      assets: assets,
-      groups: groups,
-      transactions: transactions,
-      currency: currency,
-      exportDate: new Date().toISOString()
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `portfolio-data.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   const renderCustomizedDot = (props: any) => {
     const { cx, cy, payload } = props;
     if (!showPurchaseDots) return null;
@@ -202,10 +177,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex justify-between items-start">
           <div className="animate-in slide-in-from-left duration-500">
             <div className="flex items-center space-x-2">
-              <p className="text-slate-500 font-medium text-sm">Total Portfolio Value</p>
-              <div className="flex items-center space-x-1 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-md text-[8px] font-black uppercase tracking-tighter save-indicator">
-                <Cloud size={10} />
-                <span>Saved</span>
+              <p className="text-slate-500 font-medium text-sm">Portfolio Value</p>
+              <div className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-500 ${syncState === 'SAVING' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                {syncState === 'SAVING' ? <RefreshCw size={10} className="animate-spin" /> : <Cloud size={10} className="cloud-live" />}
+                <span>{syncState === 'SAVING' ? 'Syncing...' : 'Live Cloud'}</span>
               </div>
             </div>
             <h1 className="text-4xl font-bold tracking-tight">
@@ -213,11 +188,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </h1>
           </div>
           <div className="flex space-x-2 animate-in slide-in-from-right duration-500">
-            <button onClick={() => setIsShareModalOpen(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-2xl hover:bg-indigo-100 transition-colors">
-               <Share2 size={20} />
-            </button>
+            <div className="flex flex-col items-end px-3 py-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Status</span>
+                <span className="text-[10px] font-bold text-emerald-500 flex items-center">
+                  <CheckCircle2 size={10} className="mr-1" /> ONLINE
+                </span>
+            </div>
             <button onClick={() => setIsFolderModalOpen(true)} className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl hover:bg-slate-200 transition-colors">
-               <FolderPlus size={20} />
+               <FolderPlus size={24} />
             </button>
           </div>
         </div>
@@ -225,10 +203,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex flex-col space-y-1.5 pt-1 animate-in slide-in-from-bottom duration-500 delay-150">
           <div className="flex space-x-4 items-center">
             <div className="flex flex-col">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Since last update</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Growth</span>
               <span className={`flex items-center text-sm font-bold ${recentChangeAmt >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {recentChangeAmt >= 0 ? <ArrowUpRight size={14} className="mr-0.5" /> : <ArrowDownRight size={14} className="mr-0.5" />}
-                {formatCurrency(Math.abs(recentChangeAmt))} ({recentChangePct.toFixed(1)}%)
+                {formatCurrency(Math.abs(recentChangeAmt))}
               </span>
             </div>
             <div className="flex flex-col">
@@ -238,22 +216,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </span>
             </div>
           </div>
-          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-tighter">Invested: <span className="text-slate-600 dark:text-slate-400">{formatCurrency(stats.totalInvested)}</span></span>
         </div>
       </header>
 
       {/* Main Charts Section */}
       <div className="space-y-4">
-        {/* Performance Area Chart */}
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Portfolio Performance</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Zen Performance</h3>
             <button 
               onClick={() => setShowPurchaseDots(!showPurchaseDots)}
               className={`flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-bold transition-all ${showPurchaseDots ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
             >
               <Target size={12} />
-              <span>PURCHASES</span>
+              <span>MARKERS</span>
             </button>
           </div>
           
@@ -293,7 +269,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex items-center justify-center opacity-30">
-                  <p className="text-[10px] font-bold uppercase tracking-widest">No Historical Data</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-center">Data is loading <br/> from your cloud account...</p>
                 </div>
               )}
             </div>
@@ -336,8 +312,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="flex-1 space-y-3 overflow-hidden">
               <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Diversification</h3>
-                <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">Actual Allocation</span>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mix</h3>
+                <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">Actual %</span>
               </div>
               <div className="grid grid-cols-1 gap-y-1.5">
                 {allocationData.slice(0, 4).map((item, idx) => {
@@ -348,9 +324,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                         <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate">{item.name}</span>
                       </div>
-                      <div className="flex items-center space-x-1 flex-shrink-0">
-                         <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
-                      </div>
+                      <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
                     </div>
                   );
                 })}
@@ -391,60 +365,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
-      {/* Enhanced Share Modal */}
-      {isShareModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative">
-            <button onClick={() => setIsShareModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
-            
-            <div className="flex items-center space-x-3 mb-6">
-               <Globe className="text-indigo-600" size={24} />
-               <h3 className="text-xl font-bold">Share Your App</h3>
-            </div>
-
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 p-4 rounded-2xl mb-6">
-              <div className="flex items-center space-x-2 mb-1">
-                <AlertCircle size={14} className="text-amber-600" />
-                <p className="text-[10px] font-bold text-amber-800 dark:text-amber-500 uppercase">Warning: Private Link</p>
-              </div>
-              <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-tight">
-                Sharing the <strong>current URL</strong> will likely cause a <strong>404 Error</strong> for others because this link is private to your editor.
-              </p>
-            </div>
-            
-            <div className="space-y-3">
-              <button 
-                onClick={handleCopyLink} 
-                className={`w-full py-4 flex items-center justify-center space-x-2 font-bold rounded-2xl border transition-all ${copied ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'}`}
-              >
-                <Share2 size={18} />
-                <span>{copied ? 'Link Copied!' : 'Copy Current URL'}</span>
-              </button>
-              
-              <button 
-                onClick={handleExportData} 
-                className="w-full py-4 flex items-center justify-center space-x-2 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20"
-              >
-                <Download size={18} />
-                <span>Save Data to Share (.json)</span>
-              </button>
-              
-              <p className="text-[10px] text-center text-slate-400 mt-4">
-                To fix the 404, go to <strong>More &gt; Hosting Guide</strong>.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isFolderModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative">
             <button onClick={() => setIsFolderModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
-            <h3 className="text-xl font-bold mb-6">Create New Group</h3>
+            <h3 className="text-xl font-bold mb-6">Create Group</h3>
             <form onSubmit={handleAddFolder} className="space-y-4">
-              <input required autoFocus placeholder="Folder name" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-4 py-3 text-sm outline-none" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
-              <button className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20">Create Folder</button>
+              <input required autoFocus placeholder="e.g. Retirement" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-4 py-3 text-sm outline-none" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
+              <button className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20">Create Group</button>
             </form>
           </div>
         </div>
@@ -473,7 +401,7 @@ const AssetItem = ({ asset, formatCurrency, onAssetClick, onDragStart, onDropOnA
         ) : <div className="h-full w-full border-b border-slate-100 dark:border-slate-800 opacity-20"></div>}
       </div>
       <div className="text-right min-w-[80px]">
-        <div className="flex items-center justify-end space-x-1"><p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{formatCurrency(asset.currentValue)}</p><Edit3 size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
+        <div className="flex items-center justify-end space-x-1"><p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{formatCurrency(asset.currentValue)}</p></div>
         <div className={`text-[10px] font-black ${returnAmt >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{returnPct.toFixed(1)}%</div>
       </div>
     </div>
