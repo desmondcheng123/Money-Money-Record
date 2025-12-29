@@ -9,9 +9,9 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Use process.env for environment variables to ensure compatibility with the execution context
-const supabaseUrl = (process.env as any).VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (process.env as any).VITE_SUPABASE_ANON_KEY || '';
+// Access variables via process.env as per environment configuration to avoid ImportMeta.env errors in this environment
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const App: React.FC = () => {

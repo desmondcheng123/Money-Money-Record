@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
-import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, CloudCheck, CloudOff, AlertCircle } from 'lucide-react';
+import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle } from 'lucide-react';
 import { User } from '../types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Use process.env for environment variables to ensure compatibility with the execution context
-const supabaseUrl = (process.env as any).VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (process.env as any).VITE_SUPABASE_ANON_KEY || '';
+// Access variables via process.env as per environment configuration to avoid ImportMeta.env errors in this environment
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 interface AuthProps {
@@ -88,7 +88,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <div className="flex justify-center">
              {isCloudReady ? (
                <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-full border border-emerald-100 dark:border-emerald-800">
-                  <CloudCheck size={12} className="cloud-live" />
+                  <Cloud size={12} className="cloud-live" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Supabase Cloud Active</span>
                </div>
              ) : (
