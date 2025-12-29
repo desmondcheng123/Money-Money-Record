@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, CloudCheck, CloudOff, AlertCircle } from 'lucide-react';
 import { User } from '../types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Robust environment variable detection
-const getEnv = (key: string): string => {
-  // Check common locations for environment variables in Vite/Web environments
-  return (import.meta as any).env?.[key] || (window as any).process?.env?.[key] || '';
-};
-
-const supabaseUrl = getEnv('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
-const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Use process.env for environment variables to ensure compatibility with the execution context
+const supabaseUrl = (process.env as any).VITE_SUPABASE_URL || '';
+const supabaseAnonKey = (process.env as any).VITE_SUPABASE_ANON_KEY || '';
+const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -25,17 +21,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Detailed connection status
   const isCloudReady = !!supabase;
-  const hasUrl = !!supabaseUrl;
-  const hasKey = !!supabaseAnonKey;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
     setError('');
 
-    // Demo Mode Fallback
     if (!supabase) {
       setTimeout(() => {
         onLogin({ 
@@ -61,7 +53,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             id: data.user.id, 
             name: name || email.split('@')[0], 
             lastLogin: new Date().toISOString(),
-            email: data.user.email
           } as any);
         }
       } else {
@@ -75,12 +66,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             id: data.user.id, 
             name: data.user.user_metadata?.full_name || email.split('@')[0], 
             lastLogin: new Date().toISOString(),
-            email: data.user.email
           } as any);
         }
       }
     } catch (err: any) {
-      setError(err.message || "Authentication failed. Check your details.");
+      setError(err.message || "Authentication failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -99,32 +89,25 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
              {isCloudReady ? (
                <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-full border border-emerald-100 dark:border-emerald-800">
                   <CloudCheck size={12} className="cloud-live" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Supabase Cloud Ready</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Supabase Cloud Active</span>
                </div>
              ) : (
                <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-full border border-amber-100 dark:border-amber-800">
                   <CloudOff size={12} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Local-Only Mode</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Local Mode Only</span>
                </div>
              )}
           </div>
         </div>
 
         {!isCloudReady && (
-          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-5 rounded-[2rem] shadow-sm space-y-3">
-             <div className="flex items-start space-x-3">
-                <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                <div className="space-y-1">
-                   <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Cloud Configuration Missing</p>
-                   <p className="text-[10px] text-amber-700/70 dark:text-amber-300/50 leading-relaxed">
-                      Missing: {!hasUrl && 'VITE_SUPABASE_URL'} {!hasKey && 'VITE_SUPABASE_ANON_KEY'}. 
-                      The app will run as a guest and save data to this browser only.
-                   </p>
-                </div>
-             </div>
-             <div className="p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                <p className="text-[9px] font-bold text-slate-400 uppercase text-center">Troubleshooting</p>
-                <p className="text-[9px] text-slate-500 text-center mt-1 italic">Set keys in Vercel Settings → Environment Variables, then Redeploy.</p>
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-5 rounded-[2rem] shadow-sm flex items-start space-x-3">
+             <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+             <div className="space-y-1">
+                <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Vercel Keys Not Found</p>
+                <p className="text-[10px] text-amber-700/70 dark:text-amber-300/50 leading-relaxed">
+                   The app is using Local Mode. To use Cloud, add VITE_SUPABASE_URL to Vercel and Redeploy.
+                </p>
              </div>
           </div>
         )}
@@ -140,13 +123,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold flex items-center">
                 {mode === 'LOGIN' ? <LogIn size={20} className="mr-2 text-indigo-500" /> : <UserPlus size={20} className="mr-2 text-indigo-500" />}
-                {mode === 'LOGIN' ? 'Welcome Back' : 'Join the Vault'}
+                {mode === 'LOGIN' ? 'Welcome Back' : 'Create Vault'}
               </h2>
             </div>
 
             {mode === 'SIGNUP' && (
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">What should we call you?</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Display Name</label>
                 <div className="relative">
                   <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input required placeholder="Desmond" className="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all" value={name} onChange={e => setName(e.target.value)} />
@@ -155,15 +138,15 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             )}
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email Address</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input required type="email" placeholder="you@example.com" className="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+                <input required type="email" placeholder="you@email.com" className="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all" value={email} onChange={e => setEmail(e.target.value)} />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Secure Password</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input required type="password" placeholder="••••••••" className="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all" value={password} onChange={e => setPassword(e.target.value)} />
@@ -171,32 +154,21 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </div>
 
             {error && (
-              <div className="flex items-center space-x-2 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-xl border border-rose-100 dark:border-rose-900/30 animate-in shake duration-300">
+              <div className="flex items-center space-x-2 bg-rose-50 p-3 rounded-xl border border-rose-100 animate-in shake duration-300">
                 <Info size={14} className="text-rose-500 shrink-0" />
-                <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{error}</p>
+                <p className="text-[10px] font-bold text-rose-600">{error}</p>
               </div>
             )}
 
             <button type="submit" disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-2 active:scale-95 hover:bg-indigo-700 transition-all mt-4">
-              <span>{mode === 'LOGIN' ? (isCloudReady ? 'Secure Cloud Login' : 'Enter as Guest') : 'Initialize Cloud Vault'}</span>
+              <span>{mode === 'LOGIN' ? (isCloudReady ? 'Sign in' : 'Guest Login') : 'Join Cloud'}</span>
               <ArrowRight size={18} />
             </button>
 
             <button type="button" onClick={() => setMode(mode === 'LOGIN' ? 'SIGNUP' : 'LOGIN')} className="w-full py-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-indigo-500 transition-colors">
-              {mode === 'LOGIN' ? "Need to start a new vault? Sign Up" : "Already have a vault? Login"}
+              {mode === 'LOGIN' ? "Need a cloud account? Sign Up" : "Already have an account? Login"}
             </button>
           </form>
-        </div>
-
-        <div className="flex items-center justify-center space-x-8 opacity-40">
-           <div className="flex items-center space-x-2">
-              <ShieldCheck size={16} className="text-emerald-500" />
-              <span className="text-[9px] font-black uppercase tracking-widest">AES-256 Cloud</span>
-           </div>
-           <div className="flex items-center space-x-2">
-              <Sparkles size={16} className="text-indigo-500" />
-              <span className="text-[9px] font-black uppercase tracking-widest">Zero Knowledge</span>
-           </div>
         </div>
       </div>
     </div>

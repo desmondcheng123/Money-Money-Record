@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -8,19 +9,19 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Robust environment variable detection
-const getEnv = (key: string): string => {
-  return (import.meta as any).env?.[key] || (window as any).process?.env?.[key] || '';
-};
-
-const supabaseUrl = getEnv('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
-const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Use process.env for environment variables to ensure compatibility with the execution context
+const supabaseUrl = (process.env as any).VITE_SUPABASE_URL || '';
+const supabaseAnonKey = (process.env as any).VITE_SUPABASE_ANON_KEY || '';
+const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('zeninvest_current_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('zeninvest_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
   });
 
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -38,12 +39,16 @@ const App: React.FC = () => {
   const fetchData = useCallback(async (userId: string) => {
     if (userId === 'demo_user') {
       setSyncState('IDLE');
-      const savedAssets = localStorage.getItem(`zeninvest_assets_demo`);
-      const savedGroups = localStorage.getItem(`zeninvest_groups_demo`);
-      const savedTransactions = localStorage.getItem(`zeninvest_transactions_demo`);
-      setAssets(savedAssets ? JSON.parse(savedAssets) : []);
-      setGroups(savedGroups ? JSON.parse(savedGroups) : []);
-      setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+      try {
+        const savedAssets = localStorage.getItem(`zeninvest_assets_demo`);
+        const savedGroups = localStorage.getItem(`zeninvest_groups_demo`);
+        const savedTransactions = localStorage.getItem(`zeninvest_transactions_demo`);
+        setAssets(savedAssets ? JSON.parse(savedAssets) : []);
+        setGroups(savedGroups ? JSON.parse(savedGroups) : []);
+        setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+      } catch (e) {
+        console.error("Local data load failed");
+      }
       return;
     }
 
@@ -67,20 +72,22 @@ const App: React.FC = () => {
           return;
         }
       } catch (err) {
-        console.warn("Cloud fetch failed, using local storage cache.");
+        console.warn("Cloud fetch failed, trying local storage fallback.");
       }
     }
 
-    const suffix = `_${userId}`;
-    const savedAssets = localStorage.getItem(`zeninvest_assets${suffix}`);
-    const savedGroups = localStorage.getItem(`zeninvest_groups${suffix}`);
-    const savedTransactions = localStorage.getItem(`zeninvest_transactions${suffix}`);
-    const savedCurrency = localStorage.getItem(`zeninvest_currency${suffix}`);
-    
-    setAssets(savedAssets ? JSON.parse(savedAssets) : []);
-    setGroups(savedGroups ? JSON.parse(savedGroups) : []);
-    setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
-    if (savedCurrency) setCurrency(savedCurrency as any);
+    try {
+      const suffix = `_${userId}`;
+      const savedAssets = localStorage.getItem(`zeninvest_assets${suffix}`);
+      const savedGroups = localStorage.getItem(`zeninvest_groups${suffix}`);
+      const savedTransactions = localStorage.getItem(`zeninvest_transactions${suffix}`);
+      
+      setAssets(savedAssets ? JSON.parse(savedAssets) : []);
+      setGroups(savedGroups ? JSON.parse(savedGroups) : []);
+      setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
+    } catch (e) {
+      console.error("Local storage sync error");
+    }
     setSyncState('IDLE');
   }, []);
 
@@ -100,7 +107,6 @@ const App: React.FC = () => {
     localStorage.setItem(`zeninvest_assets${suffix}`, JSON.stringify(assets));
     localStorage.setItem(`zeninvest_groups${suffix}`, JSON.stringify(groups));
     localStorage.setItem(`zeninvest_transactions${suffix}`, JSON.stringify(transactions));
-    localStorage.setItem(`zeninvest_currency${suffix}`, currency);
 
     if (supabase && currentUser.id !== 'demo_user') {
       try {
@@ -118,7 +124,6 @@ const App: React.FC = () => {
         if (error) throw error;
         setSyncState('IDLE');
       } catch (err) {
-        console.error("Cloud Sync failed:", err);
         setSyncState('ERROR');
       }
     } else {
@@ -131,7 +136,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       persistChanges();
-    }, 1500);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [assets, groups, transactions, currency, persistChanges]);
 
