@@ -8,16 +8,13 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Absolute Final Environment Variable Detection logic
 const getEnv = (key: string): string => {
   let val = '';
   try {
     const manual = localStorage.getItem(`MANUAL_${key}`);
     if (manual) return manual;
-
     val = (import.meta as any).env?.[key] || '';
     if (val) return val;
-    
     if (typeof process !== 'undefined' && process.env) val = process.env[key] || '';
     if (!val && typeof window !== 'undefined') {
       const win = window as any;
@@ -36,9 +33,7 @@ const App: React.FC = () => {
     try {
       const saved = localStorage.getItem('zeninvest_current_user');
       return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      return null;
-    }
+    } catch (e) { return null; }
   });
 
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -52,17 +47,16 @@ const App: React.FC = () => {
   const [syncState, setSyncState] = useState<'IDLE' | 'SAVING' | 'ERROR'>('IDLE');
   const [lastSyncTimestamp, setLastSyncTimestamp] = useState<string | null>(null);
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const saveTimeoutRef = useRef<any>(null);
 
   const isCloudActive = !!supabase;
-
-  // Track the latest state in a ref to allow "Instant Save" without closure issues
   const stateRef = useRef({ assets, groups, transactions, currency });
+
   useEffect(() => {
     stateRef.current = { assets, groups, transactions, currency };
   }, [assets, groups, transactions, currency]);
 
-  // CLOUD FETCH
   const fetchData = useCallback(async (userId: string) => {
     if (!userId) return;
     setSyncState('SAVING');
@@ -90,7 +84,6 @@ const App: React.FC = () => {
           setSyncState('IDLE');
           return;
         }
-        // PGRST116 means no row exists yet for this user
         if (error && error.code === 'PGRST116') {
           const suffix = `_${userId}`;
           setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
@@ -104,6 +97,12 @@ const App: React.FC = () => {
       } catch (err) {
         console.error("Cloud Fetch Error:", err);
         setSyncState('ERROR');
+        // Fallback to local
+        const suffix = `_${userId}`;
+        setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
+        setGroups(JSON.parse(localStorage.getItem(`zeninvest_groups${suffix}`) || '[]'));
+        setTransactions(JSON.parse(localStorage.getItem(`zeninvest_transactions${suffix}`) || '[]'));
+        setHasLoadedInitialData(true);
       }
     } else {
       const suffix = `_${userId}`;
@@ -115,25 +114,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Listen for Session changes
-  useEffect(() => {
-    if (!supabase) return;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-      } else if (session?.user) {
-        // Refresh local user state if session exists
-        setCurrentUser(prev => prev ? { ...prev, id: session.user.id } : {
-           id: session.user.id,
-           name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-           lastLogin: new Date().toISOString()
-        });
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // PERSISTENCE ENGINE
   const persistChanges = useCallback(async (forcedUser?: User) => {
     const activeUser = forcedUser || currentUser;
     if (!activeUser || !hasLoadedInitialData) return;
@@ -158,19 +138,23 @@ const App: React.FC = () => {
           }, { onConflict: 'user_id' });
         if (error) throw error;
         setSyncState('IDLE');
+        setHasUnsavedChanges(false);
       } catch (err) {
         console.error("Cloud Save Error:", err);
         setSyncState('ERROR');
       }
     } else {
-      setTimeout(() => setSyncState('IDLE'), 300);
+      setTimeout(() => {
+        setSyncState('IDLE');
+        setHasUnsavedChanges(false);
+      }, 300);
     }
     setLastSyncTimestamp(new Date().toISOString());
   }, [currentUser, hasLoadedInitialData]);
 
-  // Debounced Auto-Save
   useEffect(() => {
     if (!hasLoadedInitialData) return;
+    setHasUnsavedChanges(true);
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => persistChanges(), 2000);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
@@ -180,6 +164,27 @@ const App: React.FC = () => {
     if (currentUser) fetchData(currentUser.id);
   }, [currentUser, fetchData]);
 
+  const handleImportVault = (data: any) => {
+    if (data.assets) setAssets(data.assets);
+    if (data.groups) setGroups(data.groups);
+    if (data.transactions) setTransactions(data.transactions);
+    if (data.currency) setCurrency(data.currency);
+    setHasUnsavedChanges(true);
+    alert("Vault File Imported Successfully!");
+  };
+
+  const handleExportVault = () => {
+    const data = { assets, groups, transactions, currency, user: currentUser, exportDate: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `my-vault-${new Date().toISOString().split('T')[0]}.money`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setHasUnsavedChanges(false);
+  };
+
   const handleLogin = (user: User) => {
     setHasLoadedInitialData(false);
     setCurrentUser(user);
@@ -187,11 +192,8 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    if (window.confirm("Log out? We will perform a final cloud sync now.")) {
-      // 1. Force a final sync before clearing state
+    if (window.confirm("Log out? We will perform a final cloud sync. Make sure you have a .money file backup if you are unsure!")) {
       await persistChanges();
-      
-      // 2. Clear state
       if (supabase) await supabase.auth.signOut();
       setCurrentUser(null);
       localStorage.removeItem('zeninvest_current_user');
@@ -265,7 +267,7 @@ const App: React.FC = () => {
   const handleDeleteGroup = (groupId: string) => { setAssets(prev => prev.map(a => a.groupId === groupId ? { ...a, groupId: undefined } : a)); setGroups(prev => prev.filter(g => g.id !== groupId)); };
   const handleMoveToGroup = (assetId: string, groupId?: string) => setAssets(prev => prev.map(a => a.id === assetId ? { ...a, groupId } : a));
   const handleReorderAssets = (newAssets: Asset[]) => setAssets(newAssets.map((a, i) => ({ ...a, order: i })));
-  const handleResetData = () => { if (window.confirm("Wipe cloud data?")) { setAssets([]); setGroups([]); setTransactions([]); persistChanges(); } };
+  const handleResetData = () => { if (window.confirm("Wipe all data? This cannot be undone unless you have a .money file backup!")) { setAssets([]); setGroups([]); setTransactions([]); persistChanges(); } };
 
   if (!currentUser) return <Auth onLogin={handleLogin} />;
 
@@ -273,9 +275,9 @@ const App: React.FC = () => {
     <div className={isDarkMode ? 'dark' : ''}>
       <Layout currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} isDarkMode={isDarkMode} currentUser={currentUser}>
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-24 min-h-screen">
-          {currentScreen === Screen.DASHBOARD && <Dashboard stats={portfolioStats} assets={assets} groups={groups} portfolioHistory={portfolioHistory} currency={currency} onAssetClick={handleAssetClick} onAddAsset={handleAddAsset} onAddGroup={handleAddGroup} onDeleteGroup={handleDeleteGroup} onMoveToGroup={handleMoveToGroup} onReorderAssets={handleReorderAssets} transactions={transactions} syncState={syncState} lastSyncTimestamp={lastSyncTimestamp} isCloudActive={isCloudActive} />}
+          {currentScreen === Screen.DASHBOARD && <Dashboard stats={portfolioStats} assets={assets} groups={groups} portfolioHistory={portfolioHistory} currency={currency} onAssetClick={handleAssetClick} onAddAsset={handleAddAsset} onAddGroup={handleAddGroup} onDeleteGroup={handleDeleteGroup} onMoveToGroup={handleMoveToGroup} onReorderAssets={handleReorderAssets} transactions={transactions} syncState={syncState} lastSyncTimestamp={lastSyncTimestamp} isCloudActive={isCloudActive} hasUnsavedChanges={hasUnsavedChanges} onExportVault={handleExportVault} />}
           {currentScreen === Screen.ACTIVITY && <Activity transactions={transactions} currency={currency} />}
-          {currentScreen === Screen.SETTINGS && <Settings currency={currency} setCurrency={setCurrency} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} onResetData={handleResetData} assets={assets} transactions={transactions} groups={groups} currentUser={currentUser} onLogout={handleLogout} syncState={syncState} onRefresh={() => fetchData(currentUser.id)} isCloudActive={isCloudActive} />}
+          {currentScreen === Screen.SETTINGS && <Settings currency={currency} setCurrency={setCurrency} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} onResetData={handleResetData} assets={assets} transactions={transactions} groups={groups} currentUser={currentUser} onLogout={handleLogout} syncState={syncState} onRefresh={() => fetchData(currentUser.id)} isCloudActive={isCloudActive} onImportVault={handleImportVault} onExportVault={handleExportVault} />}
           {currentScreen === Screen.ASSET_DETAIL && selectedAssetId && assets.find(a => a.id === selectedAssetId) && <AssetDetail asset={assets.find(a => a.id === selectedAssetId)!} transactions={transactions.filter(t => t.assetId === selectedAssetId)} currency={currency} onBack={() => setCurrentScreen(Screen.DASHBOARD)} onDelete={() => handleDeleteAsset(selectedAssetId)} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onUpdateAsset={handleUpdateAsset} />}
         </div>
       </Layout>

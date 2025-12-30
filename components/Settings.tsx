@@ -1,32 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Asset, AssetGroup, Transaction, User } from '../types';
 import { 
-  Globe, 
-  Moon, 
-  Sun, 
-  FileUp, 
-  Download, 
-  ChevronRight,
-  RefreshCcw,
-  LogOut,
-  Lock,
-  Database,
-  CloudLightning,
-  AlertCircle,
-  Cloud,
-  CheckCircle2,
-  X,
-  Mail,
-  Fingerprint,
-  CloudOff,
-  Key,
-  ExternalLink,
-  Copy,
-  Eye,
-  EyeOff,
-  ShieldCheck,
-  HelpCircle,
-  Zap
+  Globe, Moon, Sun, FileUp, Download, ChevronRight, RefreshCcw, LogOut, Lock, Database, CloudLightning, AlertCircle, Cloud, CheckCircle2, X, Mail, Fingerprint, CloudOff, Key, ExternalLink, Copy, Eye, EyeOff, ShieldCheck, HelpCircle, Zap, FileJson, Upload
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -43,10 +18,12 @@ interface SettingsProps {
   syncState: 'IDLE' | 'SAVING' | 'ERROR';
   onRefresh: () => void;
   isCloudActive: boolean;
+  onImportVault: (data: any) => void;
+  onExportVault: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ 
-  currency, setCurrency, isDarkMode, setIsDarkMode, onResetData, assets, transactions, groups, currentUser, onLogout, syncState, onRefresh, isCloudActive
+  currency, setCurrency, isDarkMode, setIsDarkMode, onResetData, assets, transactions, groups, currentUser, onLogout, syncState, onRefresh, isCloudActive, onImportVault, onExportVault
 }) => {
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [showCloudWizard, setShowCloudWizard] = useState(false);
@@ -56,20 +33,10 @@ export const Settings: React.FC<SettingsProps> = ({
   const [manualUrl, setManualUrl] = useState('');
   const [manualKey, setManualKey] = useState('');
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const savedUrl = localStorage.getItem('MANUAL_VITE_SUPABASE_URL') || '';
   const savedKey = localStorage.getItem('MANUAL_VITE_SUPABASE_ANON_KEY') || '';
-
-  const handleExport = () => {
-    const data = { assets, groups, transactions, currency, user: currentUser, exportDate: new Date().toISOString() };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `money-record-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   const handleManualSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +49,24 @@ export const Settings: React.FC<SettingsProps> = ({
     navigator.clipboard.writeText(text);
     setCopyFeedback(label);
     setTimeout(() => setCopyFeedback(null), 2000);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+          if (window.confirm("Import this vault file? This will overwrite your current assets with the data from the file.")) {
+            onImportVault(json);
+          }
+        } catch (err) {
+          alert("Invalid vault file format.");
+        }
+      };
+      reader.readAsText(file);
+    }
   };
 
   const SettingItem = ({ icon: Icon, label, value, onClick, variant = 'default' }: any) => (
@@ -149,6 +134,26 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       </section>
 
+      <section className="bg-slate-900 text-white border border-slate-800 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+           <FileJson size={80} />
+        </div>
+        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Vault File (Photoshop Style)</h3>
+        <p className="text-xs text-slate-400 mb-6 leading-relaxed">Download a physical <b>.money</b> file of your data. You can open this file on any computer to restore everything instantly.</p>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={onExportVault} className="flex items-center justify-center space-x-2 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-[10px] font-black uppercase transition-all">
+             <Download size={14} />
+             <span>Save to File</span>
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center space-x-2 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase transition-all shadow-lg shadow-indigo-600/20">
+             <Upload size={14} />
+             <span>Open File</span>
+          </button>
+          <input type="file" accept=".money,.json" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+        </div>
+      </section>
+
       <section>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Preferences</p>
         <SettingItem icon={Globe} label="Currency" value={currency} onClick={() => setCurrency(currency === 'USD' ? 'MYR' : 'USD')} />
@@ -156,8 +161,7 @@ export const Settings: React.FC<SettingsProps> = ({
       </section>
 
       <section>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Security & Backup</p>
-        <SettingItem icon={Download} label="Export JSON Backup" value="Offline" onClick={handleExport} />
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Security</p>
         <SettingItem icon={Lock} label="Security FAQ" onClick={() => setShowPrivacyNotice(true)} />
       </section>
 
@@ -175,14 +179,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 <Database size={24} />
               </div>
               <h3 className="text-xl font-bold mb-1">Cloud Link Setup</h3>
-              <button 
-                type="button"
-                onClick={() => setShowHelpGuide(true)}
-                className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mb-6 block"
-              >
-                How to get these?
-              </button>
-              
+              <button type="button" onClick={() => setShowHelpGuide(true)} className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mb-6 block">How to get these?</button>
               <form onSubmit={handleManualSave} className="space-y-4">
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Supabase Project URL</label>
@@ -209,7 +206,6 @@ export const Settings: React.FC<SettingsProps> = ({
                     <h3 className="text-2xl font-black">Cloud Guide</h3>
                     <p className="text-sm text-slate-400">Setup your personal cloud in 3 steps.</p>
                  </div>
-
                  <div className="space-y-6">
                     <div className="flex space-x-4">
                        <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">1</div>
@@ -269,7 +265,6 @@ on portfolios for all using (auth.uid() = user_id);`}
               </div>
               <h3 className="text-xl font-bold mb-1">Vault Keys</h3>
               <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-6 leading-relaxed">Copy these to your other devices to sync data</p>
-              
               <div className="space-y-5">
                  <div className="space-y-2">
                     <div className="flex justify-between items-center px-1">
@@ -278,38 +273,26 @@ on portfolios for all using (auth.uid() = user_id);`}
                           <Copy size={10} className="mr-1" /> {copyFeedback === 'URL' ? 'Copied!' : 'Copy'}
                        </button>
                     </div>
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[10px] break-all border border-slate-100 dark:border-slate-700">
-                       {savedUrl}
-                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[10px] break-all border border-slate-100 dark:border-slate-700">{savedUrl}</div>
                  </div>
-
                  <div className="space-y-2">
                     <div className="flex justify-between items-center px-1">
                        <span className="text-[9px] font-black text-slate-400 uppercase">Anon API Key</span>
                        <div className="flex space-x-3">
-                          <button type="button" onClick={() => setRevealKeys(!revealKeys)} className="text-slate-400 text-[10px] font-bold uppercase flex items-center">
-                             {revealKeys ? <EyeOff size={10} className="mr-1" /> : <Eye size={10} className="mr-1" />} {revealKeys ? 'Hide' : 'Reveal'}
-                          </button>
-                          <button type="button" onClick={() => copyToClipboard(savedKey, 'Key')} className="text-indigo-500 text-[10px] font-bold uppercase flex items-center">
-                             <Copy size={10} className="mr-1" /> {copyFeedback === 'Key' ? 'Copied!' : 'Copy'}
-                          </button>
+                          <button type="button" onClick={() => setRevealKeys(!revealKeys)} className="text-slate-400 text-[10px] font-bold uppercase flex items-center">{revealKeys ? <EyeOff size={10} className="mr-1" /> : <Eye size={10} className="mr-1" />} {revealKeys ? 'Hide' : 'Reveal'}</button>
+                          <button type="button" onClick={() => copyToClipboard(savedKey, 'Key')} className="text-indigo-500 text-[10px] font-bold uppercase flex items-center"><Copy size={10} className="mr-1" /> {copyFeedback === 'Key' ? 'Copied!' : 'Copy'}</button>
                        </div>
                     </div>
                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[10px] break-all border border-slate-100 dark:border-slate-700 relative overflow-hidden">
                        <span className={revealKeys ? '' : 'blur-[3px] select-none'}>{savedKey}</span>
                        {!revealKeys && (
-                         <div className="absolute inset-0 flex items-center justify-center bg-slate-50/20 dark:bg-slate-800/20">
-                            <Lock size={14} className="text-slate-300" />
-                         </div>
+                         <div className="absolute inset-0 flex items-center justify-center bg-slate-50/20 dark:bg-slate-800/20"><Lock size={14} className="text-slate-300" /></div>
                        )}
                     </div>
                  </div>
               </div>
-
               <div className="mt-8 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
-                 <p className="text-[9px] text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
-                   <b>Note:</b> These keys link your cloud database. Store them safely.
-                 </p>
+                 <p className="text-[9px] text-amber-700 dark:text-amber-300 font-medium leading-relaxed"><b>Note:</b> These keys link your cloud database. Store them safely.</p>
               </div>
            </div>
         </div>

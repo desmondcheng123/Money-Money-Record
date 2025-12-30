@@ -1,18 +1,7 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { PortfolioStats, Asset, AssetGroup, TransactionType } from '../types';
-import { 
-  AreaChart,
-  Area,
-  XAxis,
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-// Added ArrowRight to imports from lucide-react
-import { TrendingDown, ArrowUpRight, ArrowDownRight, ArrowRight, FolderPlus, X, Folder, GripVertical, Trash2, Edit3, Target, Scale, Cloud, Share2, Download, AlertCircle, RefreshCw, Mail, CheckCircle2, CloudOff, Zap, ShieldAlert } from 'lucide-react';
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { TrendingDown, ArrowUpRight, ArrowDownRight, ArrowRight, FolderPlus, X, Folder, GripVertical, Trash2, Edit3, Target, Scale, Cloud, Share2, Download, AlertCircle, RefreshCw, Mail, CheckCircle2, CloudOff, Zap, ShieldAlert, FileJson } from 'lucide-react';
 import { Portfolio } from './Portfolio';
 
 interface DashboardProps {
@@ -31,19 +20,19 @@ interface DashboardProps {
   syncState: 'IDLE' | 'SAVING' | 'ERROR';
   lastSyncTimestamp: string | null;
   isCloudActive: boolean;
+  hasUnsavedChanges: boolean;
+  onExportVault: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
-  stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions, syncState, lastSyncTimestamp, isCloudActive
+  stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions, syncState, lastSyncTimestamp, isCloudActive, hasUnsavedChanges, onExportVault
 }) => {
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [showPurchaseDots, setShowPurchaseDots] = useState(true);
   const [sliderVal, setSliderVal] = useState(100);
-  
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null | 'unassigned'>(null);
-
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = () => {
@@ -58,7 +47,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const val = parseFloat(e.target.value);
     setSliderVal(val);
     if (scrollContainerRef.current) {
-      // Fix: Correctly destructure scrollWidth and clientWidth from the ref current element
       const { scrollWidth, clientWidth } = scrollContainerRef.current;
       const maxScroll = scrollWidth - clientWidth;
       scrollContainerRef.current.scrollLeft = (val / 100) * maxScroll;
@@ -162,6 +150,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </h1>
           </div>
           <div className="flex space-x-2 animate-in slide-in-from-right duration-500">
+            <button 
+              onClick={onExportVault} 
+              className={`p-2 rounded-2xl transition-all relative ${hasUnsavedChanges ? 'bg-indigo-600 text-white shadow-lg animate-bounce' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+              title="Save Vault File (.money)"
+            >
+               <FileJson size={24} />
+               {hasUnsavedChanges && (
+                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
+               )}
+            </button>
             <button onClick={() => setIsFolderModalOpen(true)} className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl hover:bg-slate-200 transition-colors">
                <FolderPlus size={24} />
             </button>
@@ -187,16 +185,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </header>
 
-      {!isCloudActive && (
-        <div className="p-4 bg-indigo-600 rounded-[2rem] shadow-xl shadow-indigo-600/20 text-white flex items-center justify-between group cursor-pointer" onClick={() => window.location.reload()}>
+      {hasUnsavedChanges && (
+        <div className="p-4 bg-indigo-600 rounded-[2rem] shadow-xl shadow-indigo-600/20 text-white flex items-center justify-between animate-in slide-in-from-top duration-500">
            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/20 rounded-xl"><Zap size={20} className="animate-pulse" /></div>
+              <div className="p-2 bg-white/20 rounded-xl"><Download size={20} className="animate-bounce" /></div>
               <div>
-                 <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Sync Unavailable</p>
-                 <p className="text-xs font-bold leading-tight">Click to setup Manual Cloud Link</p>
+                 <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Safety Tip</p>
+                 <p className="text-xs font-bold leading-tight">Changes not synced yet. Click file icon to download backup!</p>
               </div>
            </div>
-           {/* Fixed: ArrowRight is now correctly imported */}
+           <button onClick={onExportVault} className="px-3 py-1.5 bg-white text-indigo-600 rounded-xl text-[10px] font-black uppercase">Save Now</button>
+        </div>
+      )}
+
+      {!isCloudActive && (
+        <div className="p-4 bg-slate-900 rounded-[2rem] shadow-xl text-white flex items-center justify-between group cursor-pointer" onClick={() => window.location.reload()}>
+           <div className="flex items-center space-x-3">
+              <div className="p-2 bg-indigo-500 rounded-xl"><ShieldAlert size={20} /></div>
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Local Vault</p>
+                 <p className="text-xs font-bold leading-tight">Syncing to Cloud? Click to try again.</p>
+              </div>
+           </div>
            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
         </div>
       )}
@@ -353,4 +363,3 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrop
     </div>
   );
 };
-import { LineChart, Line } from 'recharts';
