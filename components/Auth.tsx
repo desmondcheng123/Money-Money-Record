@@ -82,7 +82,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         });
         if (signUpError) throw signUpError;
         
-        // Handling the "Email Confirmation" case for Sign Up
         if (data.user && data.session === null) {
           setError("Account created! Please check your email for a confirmation link, or disable 'Email Confirmation' in your Supabase dashboard to login instantly.");
           setIsProcessing(false);
@@ -99,9 +98,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       } else {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
-          // Detect the specific Supabase error for unconfirmed emails
           if (signInError.message.toLowerCase().includes('email not confirmed')) {
-            throw new Error("Email not confirmed. Please click the link in your inbox, or go to Supabase -> Auth -> Providers -> Email and turn OFF 'Confirm Email'.");
+            throw new Error("Email not confirmed. Please click the link in your inbox, or go to Supabase → Auth → Providers → Email and turn OFF 'Confirm Email'.");
           }
           throw signInError;
         }
@@ -130,6 +128,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               </div>
               <h2 className="text-2xl font-bold">Manual Cloud Link</h2>
               <button 
+                type="button"
                 onClick={() => setShowHelpGuide(true)}
                 className="inline-flex items-center text-[10px] text-amber-600 font-black uppercase tracking-widest hover:underline"
               >
@@ -167,7 +166,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         {showHelpGuide && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
              <div className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[90vh] rounded-[3rem] p-8 shadow-2xl relative overflow-y-auto no-scrollbar animate-in zoom-in duration-300">
-                <button onClick={() => setShowHelpGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={24} /></button>
+                <button type="button" onClick={() => setShowHelpGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={24} /></button>
                 <div className="space-y-6">
                    <div className="text-center">
                       <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4"><Zap size={32} /></div>
@@ -188,7 +187,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                          <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">2</div>
                          <div>
                             <p className="font-bold">Copy API Keys</p>
-                            <p className="text-xs text-slate-500">Go to **Settings** (gear) -> **API**. Copy the **Project URL** and the **anon public key** into the screen behind this popup.</p>
+                            <p className="text-xs text-slate-500">Go to Settings → API. Copy the Project URL and the anon public key into the setup screen.</p>
                          </div>
                       </div>
 
@@ -196,7 +195,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                          <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">3</div>
                          <div className="flex-1">
                             <p className="font-bold">Run Database Script</p>
-                            <p className="text-xs text-slate-500 mb-3">Go to **SQL Editor** (icon looks like `>_`) in Supabase, click "New Query", paste this code, and click "Run":</p>
+                            <p className="text-xs text-slate-500 mb-3">Go to SQL Editor in Supabase, click "New Query", paste this code, and click "Run":</p>
                             <div className="bg-slate-900 rounded-2xl p-4 relative group">
                                <pre className="text-[10px] text-indigo-300 overflow-x-auto font-mono leading-relaxed">
 {`create table portfolios (
@@ -215,6 +214,7 @@ on portfolios for all
 using (auth.uid() = user_id);`}
                                </pre>
                                <button 
+                                 type="button"
                                  onClick={() => {
                                    navigator.clipboard.writeText(`create table portfolios (user_id uuid references auth.users not null primary key, assets jsonb default '[]'::jsonb, groups jsonb default '[]'::jsonb, transactions jsonb default '[]'::jsonb, currency text default 'USD', updated_at timestamp with time zone default timezone('utc'::text, now()) not null); alter table portfolios enable row level security; create policy "Users can manage their own portfolio" on portfolios for all using (auth.uid() = user_id);`);
                                  }}
@@ -227,7 +227,7 @@ using (auth.uid() = user_id);`}
                       </div>
                    </div>
 
-                   <button onClick={() => setShowHelpGuide(false)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl mt-4">Got it, Let's go!</button>
+                   <button type="button" onClick={() => setShowHelpGuide(false)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl mt-4">Got it, Let's go!</button>
                 </div>
              </div>
           </div>
@@ -253,6 +253,7 @@ using (auth.uid() = user_id);`}
                </div>
              ) : (
                <button 
+                 type="button"
                  onClick={() => setShowManualSetup(true)}
                  className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-full border border-amber-100 dark:border-amber-800 hover:bg-amber-100 transition-colors cursor-pointer group"
                >
@@ -312,7 +313,7 @@ using (auth.uid() = user_id);`}
                 </div>
                 {error.toLowerCase().includes('confirm email') && (
                   <div className="pt-2 border-t border-rose-100">
-                    <p className="text-[9px] text-rose-500 font-medium">Tip: Supabase -> Auth -> Providers -> Email -> Toggle OFF "Confirm Email"</p>
+                    <p className="text-[9px] text-rose-500 font-medium">Tip: Supabase → Auth → Providers → Email → Toggle OFF "Confirm Email"</p>
                   </div>
                 )}
               </div>

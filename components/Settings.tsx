@@ -176,6 +176,7 @@ export const Settings: React.FC<SettingsProps> = ({
               </div>
               <h3 className="text-xl font-bold mb-1">Cloud Link Setup</h3>
               <button 
+                type="button"
                 onClick={() => setShowHelpGuide(true)}
                 className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mb-6 block"
               >
@@ -201,7 +202,7 @@ export const Settings: React.FC<SettingsProps> = ({
       {showHelpGuide && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
            <div className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[90vh] rounded-[3rem] p-8 shadow-2xl relative overflow-y-auto no-scrollbar animate-in zoom-in duration-300">
-              <button onClick={() => setShowHelpGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={24} /></button>
+              <button type="button" onClick={() => setShowHelpGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={24} /></button>
               <div className="space-y-6">
                  <div className="text-center">
                     <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4"><Zap size={32} /></div>
@@ -221,14 +222,14 @@ export const Settings: React.FC<SettingsProps> = ({
                        <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">2</div>
                        <div>
                           <p className="font-bold">Copy API Keys</p>
-                          <p className="text-xs text-slate-500">Go to **Settings** (gear) -> **API**. Copy the **URL** and **anon public key**.</p>
+                          <p className="text-xs text-slate-500">Go to Settings → API. Copy the URL and anon public key.</p>
                        </div>
                     </div>
                     <div className="flex space-x-4">
                        <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">3</div>
                        <div className="flex-1">
                           <p className="font-bold">Create the Table</p>
-                          <p className="text-xs text-slate-500 mb-3">Go to **SQL Editor** in Supabase, click "New Query", paste this code, and click "Run":</p>
+                          <p className="text-xs text-slate-500 mb-3">Go to SQL Editor in Supabase, click "New Query", paste this code, and click "Run":</p>
                           <div className="bg-slate-900 rounded-2xl p-4 relative group">
                              <pre className="text-[10px] text-indigo-300 overflow-x-auto font-mono leading-relaxed">
 {`create table portfolios (
@@ -245,14 +246,14 @@ alter table portfolios enable row level security;
 create policy "Users manage own portfolio" 
 on portfolios for all using (auth.uid() = user_id);`}
                              </pre>
-                             <button onClick={() => {
+                             <button type="button" onClick={() => {
                                navigator.clipboard.writeText(`create table portfolios (user_id uuid references auth.users not null primary key, assets jsonb default '[]'::jsonb, groups jsonb default '[]'::jsonb, transactions jsonb default '[]'::jsonb, currency text default 'USD', updated_at timestamp with time zone default timezone('utc'::text, now()) not null); alter table portfolios enable row level security; create policy "Users manage own portfolio" on portfolios for all using (auth.uid() = user_id);`);
                              }} className="absolute top-3 right-3 p-2 bg-white/10 text-white rounded-lg"><Copy size={14} /></button>
                           </div>
                        </div>
                     </div>
                  </div>
-                 <button onClick={() => setShowHelpGuide(false)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl">I've done this!</button>
+                 <button type="button" onClick={() => setShowHelpGuide(false)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl">I've done this!</button>
               </div>
            </div>
         </div>
@@ -262,7 +263,7 @@ on portfolios for all using (auth.uid() = user_id);`}
       {showCredentials && (
         <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
            <div className="bg-white dark:bg-slate-900 w-full max-sm rounded-[2.5rem] p-8 shadow-2xl relative animate-in zoom-in duration-300">
-              <button onClick={() => setShowCredentials(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
+              <button type="button" onClick={() => setShowCredentials(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
               <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-2xl flex items-center justify-center mb-4">
                 <ShieldCheck size={24} />
               </div>
@@ -273,7 +274,7 @@ on portfolios for all using (auth.uid() = user_id);`}
                  <div className="space-y-2">
                     <div className="flex justify-between items-center px-1">
                        <span className="text-[9px] font-black text-slate-400 uppercase">Project URL</span>
-                       <button onClick={() => copyToClipboard(savedUrl, 'URL')} className="text-indigo-500 text-[10px] font-bold uppercase flex items-center">
+                       <button type="button" onClick={() => copyToClipboard(savedUrl, 'URL')} className="text-indigo-500 text-[10px] font-bold uppercase flex items-center">
                           <Copy size={10} className="mr-1" /> {copyFeedback === 'URL' ? 'Copied!' : 'Copy'}
                        </button>
                     </div>
@@ -286,10 +287,10 @@ on portfolios for all using (auth.uid() = user_id);`}
                     <div className="flex justify-between items-center px-1">
                        <span className="text-[9px] font-black text-slate-400 uppercase">Anon API Key</span>
                        <div className="flex space-x-3">
-                          <button onClick={() => setRevealKeys(!revealKeys)} className="text-slate-400 text-[10px] font-bold uppercase flex items-center">
+                          <button type="button" onClick={() => setRevealKeys(!revealKeys)} className="text-slate-400 text-[10px] font-bold uppercase flex items-center">
                              {revealKeys ? <EyeOff size={10} className="mr-1" /> : <Eye size={10} className="mr-1" />} {revealKeys ? 'Hide' : 'Reveal'}
                           </button>
-                          <button onClick={() => copyToClipboard(savedKey, 'Key')} className="text-indigo-500 text-[10px] font-bold uppercase flex items-center">
+                          <button type="button" onClick={() => copyToClipboard(savedKey, 'Key')} className="text-indigo-500 text-[10px] font-bold uppercase flex items-center">
                              <Copy size={10} className="mr-1" /> {copyFeedback === 'Key' ? 'Copied!' : 'Copy'}
                           </button>
                        </div>
@@ -317,7 +318,7 @@ on portfolios for all using (auth.uid() = user_id);`}
       {showPrivacyNotice && (
         <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative animate-in zoom-in duration-300">
-            <button onClick={() => setShowPrivacyNotice(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
+            <button type="button" onClick={() => setShowPrivacyNotice(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
             <Lock size={40} className="text-indigo-600 mb-4" />
             <h3 className="text-xl font-bold mb-4">Security FAQ</h3>
             <div className="space-y-4">
@@ -330,7 +331,7 @@ on portfolios for all using (auth.uid() = user_id);`}
                   <p className="text-xs text-slate-500 leading-relaxed">A copy of your data is kept on this device so the app works offline.</p>
                </div>
             </div>
-            <button onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl active:scale-95 transition-all">Close</button>
+            <button type="button" onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl active:scale-95 transition-all">Close</button>
           </div>
         </div>
       )}
