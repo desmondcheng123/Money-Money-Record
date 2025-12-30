@@ -12,15 +12,12 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const getEnv = (key: string): string => {
   let val = '';
   try {
-    // 1. Check Manual Override first (Saved via UI)
     const manual = localStorage.getItem(`MANUAL_${key}`);
     if (manual) return manual;
 
-    // 2. Vite Standard
     val = (import.meta as any).env?.[key] || '';
     if (val) return val;
     
-    // 3. Process/Window Fallbacks
     if (typeof process !== 'undefined' && process.env) val = process.env[key] || '';
     if (!val && typeof window !== 'undefined') {
       const win = window as any;
@@ -30,7 +27,6 @@ const getEnv = (key: string): string => {
   return val;
 };
 
-// Singleton Supabase Client
 const supabaseUrl = getEnv('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
@@ -60,6 +56,12 @@ const App: React.FC = () => {
 
   const isCloudActive = !!supabase;
 
+  // Track the latest state in a ref to allow "Instant Save" without closure issues
+  const stateRef = useRef({ assets, groups, transactions, currency });
+  useEffect(() => {
+    stateRef.current = { assets, groups, transactions, currency };
+  }, [assets, groups, transactions, currency]);
+
   // CLOUD FETCH
   const fetchData = useCallback(async (userId: string) => {
     if (!userId) return;
@@ -88,6 +90,7 @@ const App: React.FC = () => {
           setSyncState('IDLE');
           return;
         }
+        // PGRST116 means no row exists yet for this user
         if (error && error.code === 'PGRST116') {
           const suffix = `_${userId}`;
           setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
@@ -99,6 +102,7 @@ const App: React.FC = () => {
         }
         throw error;
       } catch (err) {
+        console.error("Cloud Fetch Error:", err);
         setSyncState('ERROR');
       }
     } else {
@@ -111,65 +115,70 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // REALTIME CHANNEL
+  // Listen for Session changes
   useEffect(() => {
-    if (supabase && currentUser && currentUser.id !== 'demo_user') {
-      const channel = supabase.channel(`sync_v7_${currentUser.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'portfolios', filter: `user_id=eq.${currentUser.id}` }, 
-          (payload) => {
-            const cloudDate = payload.new.updated_at;
-            if (!lastSyncTimestamp || new Date(cloudDate) > new Date(lastSyncTimestamp)) {
-              setAssets(payload.new.assets || []);
-              setGroups(payload.new.groups || []);
-              setTransactions(payload.new.transactions || []);
-              setCurrency(payload.new.currency || 'USD');
-              setLastSyncTimestamp(cloudDate);
-              setHasLoadedInitialData(true);
-            }
-          }
-        ).subscribe();
-      return () => { supabase.removeChannel(channel); };
-    }
-  }, [currentUser, lastSyncTimestamp]);
-
-  useEffect(() => {
-    if (currentUser) fetchData(currentUser.id);
-  }, [currentUser, fetchData]);
+    if (!supabase) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+      } else if (session?.user) {
+        // Refresh local user state if session exists
+        setCurrentUser(prev => prev ? { ...prev, id: session.user.id } : {
+           id: session.user.id,
+           name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+           lastLogin: new Date().toISOString()
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // PERSISTENCE ENGINE
-  const persistChanges = useCallback(async () => {
-    if (!currentUser || !hasLoadedInitialData) return;
+  const persistChanges = useCallback(async (forcedUser?: User) => {
+    const activeUser = forcedUser || currentUser;
+    if (!activeUser || !hasLoadedInitialData) return;
+    
     setSyncState('SAVING');
-    const suffix = currentUser.id === 'demo_user' ? '_demo' : `_${currentUser.id}`;
-    localStorage.setItem(`zeninvest_assets${suffix}`, JSON.stringify(assets));
-    localStorage.setItem(`zeninvest_groups${suffix}`, JSON.stringify(groups));
-    localStorage.setItem(`zeninvest_transactions${suffix}`, JSON.stringify(transactions));
+    const { assets: a, groups: g, transactions: t, currency: c } = stateRef.current;
+    
+    const suffix = activeUser.id === 'demo_user' ? '_demo' : `_${activeUser.id}`;
+    localStorage.setItem(`zeninvest_assets${suffix}`, JSON.stringify(a));
+    localStorage.setItem(`zeninvest_groups${suffix}`, JSON.stringify(g));
+    localStorage.setItem(`zeninvest_transactions${suffix}`, JSON.stringify(t));
 
-    if (supabase && currentUser.id !== 'demo_user') {
+    if (supabase && activeUser.id !== 'demo_user') {
       try {
         const { error } = await supabase.from('portfolios').upsert({
-            user_id: currentUser.id,
-            assets,
-            groups,
-            transactions,
-            currency,
+            user_id: activeUser.id,
+            assets: a,
+            groups: g,
+            transactions: t,
+            currency: c,
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
         if (error) throw error;
         setSyncState('IDLE');
       } catch (err) {
+        console.error("Cloud Save Error:", err);
         setSyncState('ERROR');
       }
     } else {
       setTimeout(() => setSyncState('IDLE'), 300);
     }
     setLastSyncTimestamp(new Date().toISOString());
-  }, [assets, groups, transactions, currency, currentUser, hasLoadedInitialData]);
+  }, [currentUser, hasLoadedInitialData]);
 
+  // Debounced Auto-Save
   useEffect(() => {
+    if (!hasLoadedInitialData) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => persistChanges(), 2000);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [assets, groups, transactions, currency, persistChanges]);
+  }, [assets, groups, transactions, currency, persistChanges, hasLoadedInitialData]);
+
+  useEffect(() => {
+    if (currentUser) fetchData(currentUser.id);
+  }, [currentUser, fetchData]);
 
   const handleLogin = (user: User) => {
     setHasLoadedInitialData(false);
@@ -177,8 +186,13 @@ const App: React.FC = () => {
     localStorage.setItem('zeninvest_current_user', JSON.stringify(user));
   };
 
-  const handleLogout = () => {
-    if (window.confirm("Log out? Data is safe in cloud.")) {
+  const handleLogout = async () => {
+    if (window.confirm("Log out? We will perform a final cloud sync now.")) {
+      // 1. Force a final sync before clearing state
+      await persistChanges();
+      
+      // 2. Clear state
+      if (supabase) await supabase.auth.signOut();
       setCurrentUser(null);
       localStorage.removeItem('zeninvest_current_user');
       setAssets([]);
@@ -236,7 +250,7 @@ const App: React.FC = () => {
   const handleAssetClick = (id: string) => { setSelectedAssetId(id); setCurrentScreen(Screen.ASSET_DETAIL); };
   const handleAddAsset = (newAsset: Omit<Asset, 'id' | 'order' | 'priceHistory'>) => {
     const assetId = Math.random().toString(36).substr(2, 9);
-    const initialTx: Transaction = { id: Math.random().toString(36).substr(2, 9), assetId, ticker: newAsset.ticker, type: TransactionType.BUY, amount: newAsset.totalInvested, date: new Date(Date.now() - 1000).toISOString() };
+    const initialTx: Transaction = { id: Math.random().toString(36).substr(2, 9), assetId, ticker: newAsset.ticker, type: TransactionType.BUY, amount: newAsset.totalInvested, date: new Date().toISOString() };
     const newAssets = [...assets, { ...newAsset, id: assetId, order: assets.length, priceHistory: [] }];
     const newTransactions = [initialTx, ...transactions];
     setTransactions(newTransactions);
