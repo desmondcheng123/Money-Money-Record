@@ -7,22 +7,17 @@ import {
   FileUp, 
   Download, 
   ChevronRight,
-  Info,
   RefreshCcw,
-  Share2,
-  X,
-  Check,
-  Lock,
-  Smartphone,
-  ShieldAlert,
   LogOut,
-  Key,
-  Info as InfoIcon,
-  Cloud,
-  Mail,
-  AlertCircle,
+  Lock,
   Database,
-  CloudLightning
+  CloudLightning,
+  AlertCircle,
+  Cloud,
+  CheckCircle2,
+  X,
+  Mail,
+  Fingerprint
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -37,24 +32,16 @@ interface SettingsProps {
   currentUser: User;
   onLogout: () => void;
   syncState: 'IDLE' | 'SAVING' | 'ERROR';
+  onRefresh: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ 
-  currency, setCurrency, isDarkMode, setIsDarkMode, onResetData, assets, transactions, groups, currentUser, onLogout, syncState
+  currency, setCurrency, isDarkMode, setIsDarkMode, onResetData, assets, transactions, groups, currentUser, onLogout, syncState, onRefresh
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
 
   const handleExport = () => {
-    const data = {
-      assets,
-      groups,
-      transactions,
-      currency,
-      user: currentUser,
-      exportDate: new Date().toISOString()
-    };
-    
+    const data = { assets, groups, transactions, currency, user: currentUser, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -94,67 +81,64 @@ export const Settings: React.FC<SettingsProps> = ({
            <div>
               <h2 className="text-2xl font-bold">{currentUser.name}</h2>
               <div className="flex items-center space-x-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Live Sync Connected</p>
+                <div className={`w-1.5 h-1.5 rounded-full ${syncState === 'ERROR' ? 'bg-rose-500' : 'bg-emerald-500 animate-pulse'}`}></div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  {syncState === 'ERROR' ? 'Sync Error' : 'Cloud Connected'}
+                </p>
               </div>
            </div>
         </div>
-        <button 
-          onClick={onLogout} 
-          className="p-3 text-rose-500 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
-          title="Logout"
-        >
+        <button onClick={onLogout} className="p-3 text-rose-500 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors">
            <LogOut size={20} />
         </button>
       </div>
 
-      {/* Cloud Status Card */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm overflow-hidden relative">
-        <div className="absolute top-0 right-0 p-8 opacity-5">
-           <Database size={120} />
+      {/* Cloud Diagnostic Card */}
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+           <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Sync Diagnostics</h3>
+           <button onClick={onRefresh} className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors">
+              <RefreshCcw size={14} className={syncState === 'SAVING' ? 'animate-spin' : ''} />
+           </button>
         </div>
         
-        <div className="flex items-start space-x-4 mb-4 relative z-10">
-           <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl text-emerald-600 shadow-sm border border-emerald-100 dark:border-emerald-900/30">
-              <CloudLightning size={24} className="cloud-live" />
-           </div>
-           <div>
-              <h3 className="font-bold text-slate-800 dark:text-slate-100">Sync is Automated</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Changes are saved to your account in real-time. No manual steps needed.</p>
-           </div>
-        </div>
-        
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 flex items-start space-x-3 relative z-10">
-          <Database size={16} className="text-indigo-500 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-[10px] text-slate-700 dark:text-slate-300 font-bold uppercase mb-1">Live Database</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal italic">
-              Each asset and transaction is securely stored in your personal cloud vault. You can log in on any device to see your live portfolio.
-            </p>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-[11px] py-2 border-b border-slate-50 dark:border-slate-800">
+             <span className="text-slate-400 font-bold uppercase">Account Link</span>
+             <span className="text-slate-800 dark:text-slate-200 font-mono truncate max-w-[150px]">{currentUser.id}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] py-2 border-b border-slate-50 dark:border-slate-800">
+             <span className="text-slate-400 font-bold uppercase">Sync Mode</span>
+             <span className="text-emerald-500 font-black uppercase flex items-center">
+                <CloudLightning size={10} className="mr-1" /> FULL CLOUD SYNC
+             </span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] py-2">
+             <span className="text-slate-400 font-bold uppercase">Status</span>
+             <span className={syncState === 'ERROR' ? 'text-rose-500 font-bold' : 'text-emerald-500 font-bold'}>
+                {syncState === 'SAVING' ? 'Syncing...' : syncState === 'ERROR' ? 'Disconnected' : 'Online & Current'}
+             </span>
           </div>
         </div>
+
+        <button 
+          onClick={onRefresh}
+          className="w-full mt-4 py-3 bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 rounded-2xl border border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all"
+        >
+          Force Pull from Cloud
+        </button>
       </section>
 
       <section>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Preferences</p>
-        <SettingItem 
-          icon={Globe} 
-          label="Currency" 
-          value={currency} 
-          onClick={() => setCurrency(currency === 'USD' ? 'MYR' : 'USD')} 
-        />
-        <SettingItem 
-          icon={isDarkMode ? Moon : Sun} 
-          label="Appearance" 
-          value={isDarkMode ? 'Dark' : 'Light'} 
-          onClick={() => setIsDarkMode(!isDarkMode)} 
-        />
+        <SettingItem icon={Globe} label="Currency" value={currency} onClick={() => setCurrency(currency === 'USD' ? 'MYR' : 'USD')} />
+        <SettingItem icon={isDarkMode ? Moon : Sun} label="Appearance" value={isDarkMode ? 'Dark' : 'Light'} onClick={() => setIsDarkMode(!isDarkMode)} />
       </section>
 
       <section>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Account Security</p>
-        <SettingItem icon={Download} label="Export Legacy Backup" value="Save .json" onClick={handleExport} />
-        <SettingItem icon={Lock} label="Security FAQ" onClick={() => setShowPrivacyNotice(true)} />
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Security & Data</p>
+        <SettingItem icon={Download} label="Export JSON Backup" value="Local .json" onClick={handleExport} />
+        <SettingItem icon={Lock} label="Cloud Privacy FAQ" onClick={() => setShowPrivacyNotice(true)} />
       </section>
 
       <section>
@@ -162,32 +146,29 @@ export const Settings: React.FC<SettingsProps> = ({
         <SettingItem icon={RefreshCcw} label="Factory Reset Cloud" variant="danger" onClick={onResetData} />
       </section>
 
-      {/* Privacy FAQ Modal */}
       {showPrivacyNotice && (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative">
             <button onClick={() => setShowPrivacyNotice(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
             <Lock size={40} className="text-indigo-600 mb-4" />
             <h3 className="text-xl font-bold mb-4">Cloud Security</h3>
-            <div className="space-y-4 text-sm text-slate-500 leading-relaxed">
-              <p>Your data is encrypted both in transit and at rest using AES-256. Only you have access through your authenticated account.</p>
-              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">Key Features</p>
-                <ul className="text-[10px] space-y-1 list-disc pl-4">
-                  <li>Automatic Real-time Backups</li>
-                  <li>Instant Multi-Device Syncing</li>
-                  <li>Secure Identity Management</li>
+            <p className="text-sm text-slate-500 leading-relaxed mb-6">Your data is synced via Supabase. If you log in on Browser B with the same email, it should immediately fetch your Cloud vault.</p>
+            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[10px] font-black uppercase mb-2">Diagnostic Tips</p>
+                <ul className="text-[10px] space-y-2 list-disc pl-4 text-slate-500">
+                  <li>Ensure both devices show "Cloud Active" on login.</li>
+                  <li>Use the "Force Pull" button if data feels stale.</li>
+                  <li>Real-time sync pushes updates instantly across tabs.</li>
                 </ul>
-              </div>
             </div>
-            <button onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Understood</button>
+            <button onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl">Close</button>
           </div>
         </div>
       )}
 
       <div className="p-8 text-center opacity-30">
         <h3 className="font-black text-2xl italic text-slate-900 dark:text-white uppercase tracking-tighter">Money Money Record</h3>
-        <p className="text-xs font-medium">Synced & Secure.</p>
+        <p className="text-xs font-medium">Built for Long-Term Value.</p>
       </div>
     </div>
   );
