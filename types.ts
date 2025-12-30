@@ -3,8 +3,7 @@ export enum Screen {
   ALLOCATION = 'ALLOCATION',
   ACTIVITY = 'ACTIVITY',
   SETTINGS = 'SETTINGS',
-  ASSET_DETAIL = 'ASSET_DETAIL',
-  AUTH = 'AUTH'
+  ASSET_DETAIL = 'ASSET_DETAIL'
 }
 
 export enum TransactionType {
@@ -17,7 +16,6 @@ export enum TransactionType {
 export interface User {
   id: string;
   name: string;
-  lastLogin: string;
 }
 
 export interface AssetGroup {
