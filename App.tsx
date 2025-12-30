@@ -8,20 +8,38 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const getEnvValue = (key: string): string => {
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-    const val = (import.meta as any).env[key];
-    if (val) return val;
-  }
-  if (typeof process !== 'undefined' && process.env) {
-    return (process.env[key] as string) || '';
-  }
+// Bulletproof environment variable detector
+const getEnvVar = (key: string): string => {
+  // 1. Check Vite's standard location
+  try {
+    const metaEnv = (import.meta as any).env;
+    if (metaEnv && metaEnv[key]) return metaEnv[key];
+  } catch (e) {}
+
+  // 2. Check standard Node/Vercel location
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key] as string;
+    }
+  } catch (e) {}
+
+  // 3. Check window-injected location (used by some CI/CD tools)
+  try {
+    const win = window as any;
+    if (win.process?.env?.[key]) return win.process.env[key];
+    if (win._env_?.[key]) return win._env_[key];
+  } catch (e) {}
+
   return '';
 };
 
-const supabaseUrl = getEnvValue('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnvValue('VITE_SUPABASE_ANON_KEY');
-const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+
+// Initialize Supabase only if both keys are actually strings with content
+const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null;
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -46,12 +64,12 @@ const App: React.FC = () => {
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
   const saveTimeoutRef = useRef<any>(null);
 
-  // CLOUD FETCH - THE SOURCE OF TRUTH
+  // CLOUD FETCH
   const fetchData = useCallback(async (userId: string) => {
     if (!userId) return;
     setSyncState('SAVING');
     
-    // DEMO USER - LOCAL ONLY
+    // DEMO USER
     if (userId === 'demo_user') {
       const suffix = '_demo';
       setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
@@ -71,7 +89,6 @@ const App: React.FC = () => {
           .eq('user_id', userId)
           .single();
 
-        // 1. DATA FOUND
         if (data && !error) {
           setAssets(data.assets || []);
           setGroups(data.groups || []);
@@ -80,13 +97,10 @@ const App: React.FC = () => {
           setLastSyncTimestamp(data.updated_at);
           setHasLoadedInitialData(true);
           setSyncState('IDLE');
-          console.log("Cloud sync successful");
           return;
         }
 
-        // 2. NEW USER (No row yet)
         if (error && error.code === 'PGRST116') {
-          console.log("New cloud user, loading local fallback");
           const suffix = `_${userId}`;
           setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
           setGroups(JSON.parse(localStorage.getItem(`zeninvest_groups${suffix}`) || '[]'));
@@ -95,18 +109,13 @@ const App: React.FC = () => {
           setSyncState('IDLE');
           return;
         }
-
-        // 3. ACTUAL ERROR (Network/Auth)
         throw error;
       } catch (err) {
-        console.error("Cloud connection failed:", err);
+        console.error("Cloud Sync Error:", err);
         setSyncState('ERROR');
-        // Critical: Do NOT set HasLoadedInitialData to true yet, try local but keep hasLoaded false
-        const suffix = `_${userId}`;
-        setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
       }
     } else {
-      // Local Mode Only
+      // Local Fallback
       const suffix = `_${userId}`;
       setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
       setGroups(JSON.parse(localStorage.getItem(`zeninvest_groups${suffix}`) || '[]'));
@@ -116,11 +125,11 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // REALTIME SYNC across multiple tabs/devices
+  // REALTIME CHANNEL
   useEffect(() => {
     if (supabase && currentUser && currentUser.id !== 'demo_user') {
       const channel = supabase
-        .channel(`sync_${currentUser.id}`)
+        .channel(`sync_v4_${currentUser.id}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'portfolios', filter: `user_id=eq.${currentUser.id}` }, 
           (payload) => {
             const cloudDate = payload.new.updated_at;
@@ -130,6 +139,7 @@ const App: React.FC = () => {
               setTransactions(payload.new.transactions || []);
               setCurrency(payload.new.currency || 'USD');
               setLastSyncTimestamp(cloudDate);
+              setHasLoadedInitialData(true);
             }
           }
         ).subscribe();
@@ -141,9 +151,8 @@ const App: React.FC = () => {
     if (currentUser) fetchData(currentUser.id);
   }, [currentUser, fetchData]);
 
-  // PROTECTED AUTO-SAVE
+  // PERSISTENCE ENGINE
   const persistChanges = useCallback(async () => {
-    // SECURITY: NEVER overwrite cloud if we haven't successfully synced yet
     if (!currentUser || !hasLoadedInitialData) return;
     
     setSyncState('SAVING');
@@ -188,7 +197,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    if (window.confirm("Log out? Your cloud data is safe.")) {
+    if (window.confirm("Log out? Data is safe in cloud.")) {
       setCurrentUser(null);
       localStorage.removeItem('zeninvest_current_user');
       setAssets([]);
@@ -271,7 +280,7 @@ const App: React.FC = () => {
   const handleDeleteGroup = (groupId: string) => { setAssets(prev => prev.map(a => a.groupId === groupId ? { ...a, groupId: undefined } : a)); setGroups(prev => prev.filter(g => g.id !== groupId)); };
   const handleMoveToGroup = (assetId: string, groupId?: string) => setAssets(prev => prev.map(a => a.id === assetId ? { ...a, groupId } : a));
   const handleReorderAssets = (newAssets: Asset[]) => setAssets(newAssets.map((a, i) => ({ ...a, order: i })));
-  const handleResetData = () => { if (window.confirm("This will permanently wipe ALL your cloud data. Continue?")) { setAssets([]); setGroups([]); setTransactions([]); persistChanges(); } };
+  const handleResetData = () => { if (window.confirm("Wipe cloud data?")) { setAssets([]); setGroups([]); setTransactions([]); persistChanges(); } };
 
   if (!currentUser) return <Auth onLogin={handleLogin} />;
 
