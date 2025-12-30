@@ -1,18 +1,18 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { PortfolioStats, Asset, AssetGroup, TransactionType } from '../types';
 import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  Tooltip, 
-  ResponsiveContainer,
   AreaChart,
   Area,
+  XAxis,
+  Tooltip, 
+  ResponsiveContainer,
   PieChart,
   Pie,
   Cell
 } from 'recharts';
-import { TrendingDown, ArrowUpRight, ArrowDownRight, FolderPlus, X, Folder, GripVertical, Trash2, Edit3, Target, Scale, Cloud, Share2, Download, AlertCircle, RefreshCw, Mail, CheckCircle2 } from 'lucide-react';
+// Added ArrowRight to imports from lucide-react
+import { TrendingDown, ArrowUpRight, ArrowDownRight, ArrowRight, FolderPlus, X, Folder, GripVertical, Trash2, Edit3, Target, Scale, Cloud, Share2, Download, AlertCircle, RefreshCw, Mail, CheckCircle2, CloudOff, Zap, ShieldAlert } from 'lucide-react';
 import { Portfolio } from './Portfolio';
 
 interface DashboardProps {
@@ -30,10 +30,11 @@ interface DashboardProps {
   transactions: any[];
   syncState: 'IDLE' | 'SAVING' | 'ERROR';
   lastSyncTimestamp: string | null;
+  isCloudActive: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
-  stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions, syncState, lastSyncTimestamp
+  stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions, syncState, lastSyncTimestamp, isCloudActive
 }) => {
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -49,9 +50,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
       const maxScroll = scrollWidth - clientWidth;
-      if (maxScroll > 0) {
-        setSliderVal((scrollLeft / maxScroll) * 100);
-      }
+      if (maxScroll > 0) setSliderVal((scrollLeft / maxScroll) * 100);
     }
   };
 
@@ -59,6 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const val = parseFloat(e.target.value);
     setSliderVal(val);
     if (scrollContainerRef.current) {
+      // Fix: Correctly destructure scrollWidth and clientWidth from the ref current element
       const { scrollWidth, clientWidth } = scrollContainerRef.current;
       const maxScroll = scrollWidth - clientWidth;
       scrollContainerRef.current.scrollLeft = (val / 100) * maxScroll;
@@ -72,30 +72,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [portfolioHistory]);
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(val);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency }).format(val);
   };
 
-  const lastValue = useMemo(() => {
-    if (portfolioHistory.length > 1) {
-      return portfolioHistory[portfolioHistory.length - 2].value;
-    }
-    return stats.totalValue;
-  }, [portfolioHistory, stats.totalValue]);
-
+  const lastValue = portfolioHistory.length > 1 ? portfolioHistory[portfolioHistory.length - 2].value : stats.totalValue;
   const recentChangeAmt = stats.totalValue - lastValue;
 
   const allocationData = useMemo(() => {
-    return assets
-      .map(a => ({
-        name: a.ticker,
-        value: a.currentValue,
-        color: a.color
-      }))
-      .filter(d => d.value > 0)
-      .sort((a, b) => b.value - a.value);
+    return assets.map(a => ({ name: a.ticker, value: a.currentValue, color: a.color }))
+      .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
   }, [assets]);
 
   const handleAddFolder = (e: React.FormEvent) => {
@@ -137,30 +122,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return [...assets].sort((a, b) => a.order - b.order);
   }, [assets]);
 
-  const chartWidth = useMemo(() => {
-    const minWidth = 400;
-    const widthPerPoint = 45;
-    return Math.max(minWidth, portfolioHistory.length * widthPerPoint);
-  }, [portfolioHistory]);
+  const chartWidth = Math.max(400, portfolioHistory.length * 45);
 
   const formatXAxis = (tickItem: string) => {
     const d = new Date(tickItem);
     const now = new Date();
-    if (d.getFullYear() !== now.getFullYear()) {
-      return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-    }
+    if (d.getFullYear() !== now.getFullYear()) return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   const renderCustomizedDot = (props: any) => {
     const { cx, cy, payload } = props;
     if (!showPurchaseDots) return null;
-
-    const hasPurchase = transactions.some(t => 
-      t.type === TransactionType.BUY && 
-      new Date(t.date).toDateString() === new Date(payload.fullDate).toDateString()
-    );
-
+    const hasPurchase = transactions.some(t => t.type === TransactionType.BUY && new Date(t.date).toDateString() === new Date(payload.fullDate).toDateString());
     if (hasPurchase) {
       return (
         <svg x={cx - 5} y={cy - 5} width={10} height={10} fill="#4f46e5" viewBox="0 0 10 10">
@@ -178,9 +152,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="animate-in slide-in-from-left duration-500">
             <div className="flex items-center space-x-2">
               <p className="text-slate-500 font-medium text-sm">Portfolio Value</p>
-              <div className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-500 ${syncState === 'SAVING' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                {syncState === 'SAVING' ? <RefreshCw size={10} className="animate-spin" /> : <Cloud size={10} className="cloud-live" />}
-                <span>{syncState === 'SAVING' ? 'Syncing...' : 'Live Cloud'}</span>
+              <div className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-500 ${!isCloudActive ? 'bg-amber-100 text-amber-600' : syncState === 'SAVING' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                {!isCloudActive ? <CloudOff size={10} /> : syncState === 'SAVING' ? <RefreshCw size={10} className="animate-spin" /> : <Cloud size={10} className="cloud-live" />}
+                <span>{!isCloudActive ? 'Local Vault' : syncState === 'SAVING' ? 'Syncing...' : 'Cloud Active'}</span>
               </div>
             </div>
             <h1 className="text-4xl font-bold tracking-tight">
@@ -188,12 +162,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </h1>
           </div>
           <div className="flex space-x-2 animate-in slide-in-from-right duration-500">
-            <div className="flex flex-col items-end px-3 py-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Status</span>
-                <span className="text-[10px] font-bold text-emerald-500 flex items-center">
-                  <CheckCircle2 size={10} className="mr-1" /> ONLINE
-                </span>
-            </div>
             <button onClick={() => setIsFolderModalOpen(true)} className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl hover:bg-slate-200 transition-colors">
                <FolderPlus size={24} />
             </button>
@@ -219,11 +187,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </header>
 
-      {/* Main Charts Section */}
+      {!isCloudActive && (
+        <div className="p-4 bg-indigo-600 rounded-[2rem] shadow-xl shadow-indigo-600/20 text-white flex items-center justify-between group cursor-pointer" onClick={() => window.location.reload()}>
+           <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-xl"><Zap size={20} className="animate-pulse" /></div>
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Sync Unavailable</p>
+                 <p className="text-xs font-bold leading-tight">Click to setup Manual Cloud Link</p>
+              </div>
+           </div>
+           {/* Fixed: ArrowRight is now correctly imported */}
+           <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Zen Performance</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Performance</h3>
             <button 
               onClick={() => setShowPurchaseDots(!showPurchaseDots)}
               className={`flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-bold transition-all ${showPurchaseDots ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
@@ -248,28 +229,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis 
-                      dataKey="fullDate" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} 
-                      tickFormatter={formatXAxis}
-                      dy={10}
-                      interval={portfolioHistory.length > 10 ? Math.floor(portfolioHistory.length / 8) : 0}
-                    />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#1e293b', padding: '12px' }} 
-                      labelFormatter={(label) => new Date(label).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                      labelStyle={{ color: '#818cf8', fontWeight: 800, fontSize: '10px' }}
-                      itemStyle={{ color: '#f8fafc', fontSize: '14px', fontWeight: 700 }}
-                      formatter={(value: number) => [formatCurrency(value), 'Value']} 
-                    />
+                    <XAxis dataKey="fullDate" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} tickFormatter={formatXAxis} dy={10} interval={portfolioHistory.length > 10 ? Math.floor(portfolioHistory.length / 8) : 0} />
+                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#1e293b', padding: '12px' }} labelFormatter={(label) => new Date(label).toLocaleString()} labelStyle={{ color: '#818cf8', fontWeight: 800, fontSize: '10px' }} itemStyle={{ color: '#f8fafc', fontSize: '14px', fontWeight: 700 }} formatter={(value: number) => [formatCurrency(value), 'Value']} />
                     <Area type="monotone" dataKey="value" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" animationDuration={1000} dot={renderCustomizedDot} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex items-center justify-center opacity-30">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-center">Data is loading <br/> from your cloud account...</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-center">No history recorded</p>
                 </div>
               )}
             </div>
@@ -279,36 +246,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center space-x-4">
               <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Past</span>
               <input type="range" min="0" max="100" step="0.1" value={sliderVal} onChange={handleSliderChange} className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-600 focus:outline-none" />
-              <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Present</span>
+              <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Now</span>
             </div>
           </div>
         </div>
 
-        {/* Diversification Section */}
         {allocationData.length > 0 && (
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex items-center space-x-6">
             <div className="w-1/3 h-32 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={allocationData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={35}
-                    outerRadius={50}
-                    paddingAngle={4}
-                    dataKey="value"
-                    animationDuration={1500}
-                  >
-                    {allocationData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                    ))}
+                  <Pie data={allocationData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1500}>
+                    {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <Scale size={16} className="text-slate-300" />
-              </div>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Scale size={16} className="text-slate-300" /></div>
             </div>
             <div className="flex-1 space-y-3 overflow-hidden">
               <div className="flex items-center justify-between">
@@ -334,40 +287,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
       </div>
 
-      {/* Asset Groups Section */}
       <section className="space-y-6">
         {groups.map(group => {
           const groupAssets = sortedAssets.filter(a => a.groupId === group.id);
           const groupValue = groupAssets.reduce((acc, a) => acc + a.currentValue, 0);
           const isOver = dropTargetId === group.id;
-
           return (
             <div key={group.id} onDragOver={(e) => handleDragOver(e, group.id)} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDropOnGroup(group.id)} className="space-y-3">
               <div className="flex justify-between items-center px-2">
                  <div className="flex items-center space-x-2">
-                    <Folder size={18} className={`${isOver ? 'text-indigo-600 scale-125' : 'text-indigo-400'} transition-all duration-300`} />
-                    <h3 className={`text-sm font-bold uppercase tracking-widest transition-colors duration-300 ${isOver ? 'text-indigo-600' : 'text-slate-600 dark:text-slate-400'}`}>{group.name}</h3>
-                    <button onClick={(e) => { e.stopPropagation(); onDeleteGroup(group.id); }} className="ml-2 p-1 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
+                    <Folder size={18} className={`${isOver ? 'text-indigo-600 scale-125' : 'text-indigo-400'} transition-all`} />
+                    <h3 className={`text-sm font-bold uppercase tracking-widest ${isOver ? 'text-indigo-600' : 'text-slate-600 dark:text-slate-400'}`}>{group.name}</h3>
+                    <button onClick={() => onDeleteGroup(group.id)} className="ml-2 p-1 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
                  </div>
                  <span className="text-xs font-bold text-slate-400">{formatCurrency(groupValue)}</span>
               </div>
-              <div className={`space-y-3 p-2 rounded-[2rem] border-2 border-dashed transition-all duration-300 min-h-[80px] ${isOver ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-400 ring-4 ring-indigo-500/10 scale-[1.02]' : 'bg-slate-100/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700'}`}>
-                {groupAssets.map(asset => (
-                  <AssetItem key={asset.id} asset={asset} formatCurrency={formatCurrency} onAssetClick={onAssetClick} onDragStart={() => setDraggedAssetId(asset.id)} onDropOnAsset={handleDropOnAsset} isDragged={draggedAssetId === asset.id} />
-                ))}
+              <div className={`space-y-3 p-2 rounded-[2rem] border-2 border-dashed min-h-[80px] transition-all ${isOver ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-400' : 'bg-slate-100/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700'}`}>
+                {groupAssets.map(asset => <AssetItemRow key={asset.id} asset={asset} formatCurrency={formatCurrency} onAssetClick={onAssetClick} onDragStart={() => setDraggedAssetId(asset.id)} onDropOnAsset={handleDropOnAsset} isDragged={draggedAssetId === asset.id} />)}
               </div>
             </div>
           );
         })}
-
-        <div onDragOver={(e) => handleDragOver(e, 'unassigned')} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDropOnGroup(undefined)} className={`space-y-4 rounded-[2.5rem] transition-all duration-300 ${dropTargetId === 'unassigned' ? 'ring-4 ring-indigo-500/20 border-2 border-indigo-400 border-dashed p-4 bg-indigo-50/20' : ''}`}>
+        <div onDragOver={(e) => handleDragOver(e, 'unassigned')} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDropOnGroup(undefined)} className={`space-y-4 rounded-[2.5rem] transition-all ${dropTargetId === 'unassigned' ? 'ring-4 ring-indigo-500/20 border-2 border-indigo-400 border-dashed p-4' : ''}`}>
           <Portfolio assets={sortedAssets.filter(a => !a.groupId)} currency={currency} onAssetClick={onAssetClick} onAddAsset={onAddAsset} onDragStart={(id) => setDraggedAssetId(id)} onDropOnAsset={handleDropOnAsset} draggedAssetId={draggedAssetId} embedded={true} />
         </div>
       </section>
 
       {isFolderModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative">
+          <div className="bg-white dark:bg-slate-900 w-full max-sm rounded-[2.5rem] p-8 shadow-2xl relative">
             <button onClick={() => setIsFolderModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
             <h3 className="text-xl font-bold mb-6">Create Group</h3>
             <form onSubmit={handleAddFolder} className="space-y-4">
@@ -381,29 +329,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
   );
 };
 
-const AssetItem = ({ asset, formatCurrency, onAssetClick, onDragStart, onDropOnAsset, isDragged }: any) => {
+const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDropOnAsset, isDragged }: any) => {
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
   return (
-    <div draggable onDragStart={onDragStart} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDropOnAsset(asset.id); }} onClick={() => onAssetClick(asset.id)} className={`bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all duration-500 flex justify-between items-center cursor-pointer group ${isDragged ? 'opacity-0 scale-90 translate-y-4' : 'opacity-100 border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-xl hover:-translate-y-1'}`}>
+    <div draggable onDragStart={onDragStart} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDropOnAsset(asset.id); }} onClick={() => onAssetClick(asset.id)} className={`bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all flex justify-between items-center group ${isDragged ? 'opacity-0 scale-90 translate-y-4' : 'opacity-100 border-slate-200 dark:border-slate-800 hover:border-indigo-400 hover:shadow-xl hover:-translate-y-1'}`}>
       <div className="flex items-center space-x-3 min-w-[100px]">
-        <div className="p-1 cursor-grab active:cursor-grabbing"><GripVertical size={16} className="text-slate-300 opacity-40 group-hover:opacity-100 transition-opacity" /></div>
-        {asset.icon ? <img src={asset.icon} className="w-9 h-9 rounded-2xl object-cover shadow-sm" /> : <div className="w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-white text-[10px] shadow-sm" style={{ backgroundColor: asset.color }}>{asset.ticker.slice(0, 2)}</div>}
+        <div className="p-1 cursor-grab active:cursor-grabbing"><GripVertical size={16} className="text-slate-300 opacity-40 group-hover:opacity-100" /></div>
+        {asset.icon ? <img src={asset.icon} className="w-9 h-9 rounded-2xl object-cover shadow-sm" /> : <div className="w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-white text-[10px]" style={{ backgroundColor: asset.color }}>{asset.ticker.slice(0, 2)}</div>}
         <div className="overflow-hidden"><h4 className="font-bold text-slate-800 dark:text-slate-100 truncate text-sm">{asset.ticker}</h4><p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter truncate">{asset.category}</p></div>
       </div>
-      <div className="flex-1 h-8 mx-4 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+      <div className="flex-1 h-8 mx-4 opacity-50 group-hover:opacity-100 transition-opacity">
         {asset.priceHistory && asset.priceHistory.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={asset.priceHistory}>
-              <Line type="monotone" dataKey="value" stroke={returnAmt >= 0 ? "#10b981" : "#f43f5e"} strokeWidth={2} dot={false} />
-            </LineChart>
+            <LineChart data={asset.priceHistory}><Line type="monotone" dataKey="value" stroke={returnAmt >= 0 ? "#10b981" : "#f43f5e"} strokeWidth={2} dot={false} /></LineChart>
           </ResponsiveContainer>
         ) : <div className="h-full w-full border-b border-slate-100 dark:border-slate-800 opacity-20"></div>}
       </div>
       <div className="text-right min-w-[80px]">
-        <div className="flex items-center justify-end space-x-1"><p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{formatCurrency(asset.currentValue)}</p></div>
+        <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{formatCurrency(asset.currentValue)}</p>
         <div className={`text-[10px] font-black ${returnAmt >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{returnPct.toFixed(1)}%</div>
       </div>
     </div>
   );
 };
+import { LineChart, Line } from 'recharts';

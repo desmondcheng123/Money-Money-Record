@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle, RefreshCcw, ExternalLink, Terminal, ChevronRight, Zap } from 'lucide-react';
+import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle, RefreshCcw, ExternalLink, Terminal, ChevronRight, Zap, Database, Key } from 'lucide-react';
 import { User } from '../types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const getEnv = (key: string): string => {
   try {
+    const manual = localStorage.getItem(`MANUAL_${key}`);
+    if (manual) return manual;
+
     const metaEnv = (import.meta as any).env;
     if (metaEnv && metaEnv[key]) return metaEnv[key];
   } catch (e) {}
@@ -37,10 +40,20 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
+  const [showManualSetup, setShowManualSetup] = useState(false);
+  const [manualUrl, setManualUrl] = useState('');
+  const [manualKey, setManualKey] = useState('');
   
   const isCloudReady = !!supabase;
+
+  const handleManualSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualUrl && manualKey) {
+      localStorage.setItem('MANUAL_VITE_SUPABASE_URL', manualUrl.trim());
+      localStorage.setItem('MANUAL_VITE_SUPABASE_ANON_KEY', manualKey.trim());
+      window.location.reload(); // Hard reload to re-init Supabase client
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,8 +105,52 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     }
   };
 
+  if (showManualSetup) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+        <div className="w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-2xl space-y-6 border border-slate-100 dark:border-slate-800 animate-in zoom-in duration-300">
+           <div className="text-center space-y-2">
+              <div className="inline-flex p-4 bg-amber-500 text-white rounded-[2rem] shadow-xl shadow-amber-500/30 mb-2">
+                <Database size={32} />
+              </div>
+              <h2 className="text-2xl font-bold">Manual Cloud Link</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">
+                Env detection failed. Paste your Supabase keys below to force a connection.
+              </p>
+           </div>
+
+           <form onSubmit={handleManualSave} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center">
+                  <ExternalLink size={10} className="mr-1.5" /> Supabase URL
+                </label>
+                <input required placeholder="https://xxxx.supabase.co" className="w-full bg-slate-50 dark:bg-slate-800 px-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-amber-500 text-xs font-mono" value={manualUrl} onChange={e => setManualUrl(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center">
+                  <Key size={10} className="mr-1.5" /> Anon API Key
+                </label>
+                <textarea required rows={3} placeholder="eyJhbGciOiJIUzI1Ni..." className="w-full bg-slate-50 dark:bg-slate-800 px-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-amber-500 text-[10px] font-mono leading-tight resize-none" value={manualKey} onChange={e => setManualKey(e.target.value)} />
+              </div>
+
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
+                 <p className="text-[9px] text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
+                    Once saved, the app will reload and connect. This bypasses Vercel's environment variable issues.
+                 </p>
+              </div>
+
+              <div className="flex space-x-2 pt-2">
+                <button type="button" onClick={() => setShowManualSetup(false)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold rounded-2xl text-xs uppercase tracking-widest">Cancel</button>
+                <button type="submit" className="flex-[2] py-4 bg-amber-500 text-white font-bold rounded-2xl shadow-xl shadow-amber-500/20 text-xs uppercase tracking-widest flex items-center justify-center">Save & Re-Connect</button>
+              </div>
+           </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
       <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom duration-700">
         <div className="text-center space-y-2">
           <div className="inline-flex p-4 bg-indigo-600 text-white rounded-[2rem] shadow-xl shadow-indigo-600/30 mb-4">
@@ -108,79 +165,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   <span className="text-[10px] font-black uppercase tracking-widest">Cloud Sync Active</span>
                </div>
              ) : (
-               <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-full border border-amber-100 dark:border-amber-800">
-                  <CloudOff size={12} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Local Mode Only</span>
-               </div>
+               <button 
+                 onClick={() => setShowManualSetup(true)}
+                 className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-full border border-amber-100 dark:border-amber-800 hover:bg-amber-100 transition-colors cursor-pointer group"
+               >
+                  <CloudOff size={12} className="group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Local Mode • Setup Cloud?</span>
+               </button>
              )}
           </div>
         </div>
 
-        {!isCloudReady && (
-          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-6 rounded-[2.5rem] shadow-sm space-y-5 relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                <Zap size={80} className="text-amber-500" />
-             </div>
-
-             <div className="flex items-start space-x-3">
-                <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                <div className="space-y-1">
-                   <p className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase tracking-tight">Vercel Build Cache Detected</p>
-                   <p className="text-[10px] text-amber-700/70 dark:text-amber-300/50 leading-relaxed font-medium">
-                      Your keys are configured, but Vercel is serving an old version of the site from its cache. 
-                   </p>
-                </div>
-             </div>
-             
-             <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30 space-y-4">
-                <h4 className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest flex items-center">
-                   <RefreshCcw size={12} className="mr-2" /> 
-                   Force-Clear Fix
-                </h4>
-                <ol className="space-y-3">
-                   <li className="flex items-start space-x-3">
-                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-800 text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
-                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Click <b>Redeploy</b> in Vercel Deployments</p>
-                   </li>
-                   <li className="flex items-start space-x-3">
-                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-800 text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
-                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">UNCHECK <span className="text-rose-600">"Redeploy with Build Cache"</span></p>
-                   </li>
-                </ol>
-             </div>
-             
-             <div className="grid grid-cols-2 gap-2">
-                <a 
-                  href="https://vercel.com/dashboard"
-                  target="_blank"
-                  className="py-3 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-600/20 hover:bg-amber-600 transition-all flex items-center justify-center"
-                >
-                  Vercel Dashboard
-                  <ExternalLink size={12} className="ml-1.5" />
-                </a>
-                <button 
-                  onClick={() => setShowDebug(!showDebug)}
-                  className="py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-all flex items-center justify-center"
-                >
-                  <Terminal size={12} className="mr-1.5" />
-                  System Check
-                </button>
-             </div>
-
-             {showDebug && (
-               <div className="p-4 bg-slate-900 rounded-2xl font-mono text-[9px] space-y-2 overflow-x-auto border border-slate-800 animate-in fade-in duration-300">
-                  <p className="text-indigo-400 font-bold mb-1">// DEBUG REPORT</p>
-                  <p className="text-slate-400">VITE_SUPABASE_URL: <span className={supabaseUrl ? 'text-emerald-400' : 'text-rose-400'}>{supabaseUrl ? 'BAKED_OK' : 'MISSING'}</span></p>
-                  <p className="text-slate-400">VITE_SUPABASE_ANON: <span className={supabaseAnonKey ? 'text-emerald-400' : 'text-rose-400'}>{supabaseAnonKey ? 'BAKED_OK' : 'MISSING'}</span></p>
-                  <div className="mt-3 pt-3 border-t border-slate-800 text-[8px] text-slate-500 uppercase font-black leading-relaxed">
-                     If 'MISSING' above, your Vercel build did not pick up the keys. A fresh redeploy with NO CACHE is the only fix.
-                  </div>
-               </div>
-             )}
-          </div>
-        )}
-
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-2xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-slate-800 relative overflow-hidden">
           {isProcessing && (
             <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
