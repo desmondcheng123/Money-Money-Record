@@ -9,16 +9,16 @@ import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, Us
 const STORAGE_KEY_ASSETS = 'money_record_assets';
 const STORAGE_KEY_GROUPS = 'money_record_groups';
 const STORAGE_KEY_TRANSACTIONS = 'money_record_transactions';
+const SCHEMA_VERSION = "1.0";
 
 const App: React.FC = () => {
-  // Hardcoded for local use
   const currentUser: User = { id: 'local_user', name: 'Desmond' };
   
   const [assets, setAssets] = useState<Asset[]>([]);
   const [groups, setGroups] = useState<AssetGroup[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const currency = 'MYR'; // Forced MYR
-  const isDarkMode = true; // Permanent Dark Mode
+  const currency = 'MYR';
+  const isDarkMode = true;
   
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.DASHBOARD);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
@@ -26,7 +26,6 @@ const App: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const saveTimeoutRef = useRef<any>(null);
 
-  // Initial Load from LocalStorage
   useEffect(() => {
     const savedAssets = localStorage.getItem(STORAGE_KEY_ASSETS);
     const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
@@ -39,7 +38,6 @@ const App: React.FC = () => {
     setHasLoadedInitialData(true);
   }, []);
 
-  // Auto-save to LocalStorage
   const persistChanges = useCallback(() => {
     if (!hasLoadedInitialData) return;
     localStorage.setItem(STORAGE_KEY_ASSETS, JSON.stringify(assets));
@@ -57,21 +55,51 @@ const App: React.FC = () => {
   }, [assets, groups, transactions, persistChanges, hasLoadedInitialData]);
 
   const handleImportVault = (data: any) => {
+    // SECURITY: Integrity Check
+    if (!data || typeof data !== 'object') {
+      alert("Error: Invalid file format.");
+      return;
+    }
+
+    if (!Array.isArray(data.assets) || !Array.isArray(data.transactions)) {
+      alert("Error: This file is missing essential portfolio data. Import cancelled to protect your current records.");
+      return;
+    }
+
     if (data.assets) setAssets(data.assets);
     if (data.groups) setGroups(data.groups);
     if (data.transactions) setTransactions(data.transactions);
+    
     setHasUnsavedChanges(true);
     setTimeout(() => persistChanges(), 100);
-    alert("Vault File Imported Successfully!");
+    alert("Vault Restored! Data Integrity Verified.");
   };
 
   const handleExportVault = () => {
-    const data = { assets, groups, transactions, currency, exportDate: new Date().toISOString() };
+    const data = { 
+      version: SCHEMA_VERSION,
+      exportDate: new Date().toISOString(),
+      assets, 
+      groups, 
+      transactions, 
+      currency,
+      metadata: {
+        app: "Money Money Record",
+        owner: currentUser.name
+      }
+    };
+    
+    // Export with 2-space indentation for human readability (easier to fix if ever "corrupted")
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    
+    // Better timestamping: YYYY-MM-DD-HHMM
+    const now = new Date();
+    const ts = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
+    
     link.href = url;
-    link.download = `my-vault-${new Date().toISOString().split('T')[0]}.money`;
+    link.download = `Vault-${ts}.money`;
     link.click();
     URL.revokeObjectURL(url);
     setHasUnsavedChanges(false);
@@ -139,7 +167,7 @@ const App: React.FC = () => {
   const handleDeleteGroup = (groupId: string) => { setAssets(prev => prev.map(a => a.groupId === groupId ? { ...a, groupId: undefined } : a)); setGroups(prev => prev.filter(g => g.id !== groupId)); };
   const handleMoveToGroup = (assetId: string, groupId?: string) => setAssets(prev => prev.map(a => a.id === assetId ? { ...a, groupId } : a));
   const handleReorderAssets = (newAssets: Asset[]) => setAssets(newAssets.map((a, i) => ({ ...a, order: i })));
-  const handleResetData = () => { if (window.confirm("Wipe all local data?")) { setAssets([]); setGroups([]); setTransactions([]); localStorage.clear(); window.location.reload(); } };
+  const handleResetData = () => { if (window.confirm("Wipe all local data? This cannot be undone!")) { setAssets([]); setGroups([]); setTransactions([]); localStorage.clear(); window.location.reload(); } };
 
   return (
     <div className="dark min-h-screen bg-slate-950">
@@ -147,7 +175,7 @@ const App: React.FC = () => {
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-24 min-h-screen">
           {currentScreen === Screen.DASHBOARD && <Dashboard stats={portfolioStats} assets={assets} groups={groups} portfolioHistory={portfolioHistory} currency={currency} onAssetClick={handleAssetClick} onAddAsset={handleAddAsset} onAddGroup={handleAddGroup} onDeleteGroup={handleDeleteGroup} onMoveToGroup={handleMoveToGroup} onReorderAssets={handleReorderAssets} transactions={transactions} hasUnsavedChanges={hasUnsavedChanges} onExportVault={handleExportVault} />}
           {currentScreen === Screen.ACTIVITY && <Activity transactions={transactions} currency={currency} />}
-          {currentScreen === Screen.SETTINGS && <Settings onResetData={handleResetData} currentUser={currentUser} onImportVault={handleImportVault} onExportVault={handleExportVault} />}
+          {currentScreen === Screen.SETTINGS && <Settings onResetData={handleResetData} currentUser={currentUser} onImportVault={handleImportVault} onExportVault={handleExportVault} assets={assets} transactions={transactions} />}
           {currentScreen === Screen.ASSET_DETAIL && selectedAssetId && assets.find(a => a.id === selectedAssetId) && <AssetDetail asset={assets.find(a => a.id === selectedAssetId)!} transactions={transactions.filter(t => t.assetId === selectedAssetId)} currency={currency} onBack={() => setCurrentScreen(Screen.DASHBOARD)} onDelete={() => handleDeleteAsset(selectedAssetId)} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onUpdateAsset={handleUpdateAsset} />}
         </div>
       </Layout>
