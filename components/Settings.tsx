@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { Asset, AssetGroup, Transaction, User } from '../types';
 import { 
@@ -25,7 +24,9 @@ import {
   Copy,
   Eye,
   EyeOff,
-  ShieldCheck
+  ShieldCheck,
+  HelpCircle,
+  Zap
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -50,6 +51,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [showCloudWizard, setShowCloudWizard] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
+  const [showHelpGuide, setShowHelpGuide] = useState(false);
   const [revealKeys, setRevealKeys] = useState(false);
   const [manualUrl, setManualUrl] = useState('');
   const [manualKey, setManualKey] = useState('');
@@ -173,7 +175,12 @@ export const Settings: React.FC<SettingsProps> = ({
                 <Database size={24} />
               </div>
               <h3 className="text-xl font-bold mb-1">Cloud Link Setup</h3>
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-6">Enter Supabase keys below</p>
+              <button 
+                onClick={() => setShowHelpGuide(true)}
+                className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mb-6 block"
+              >
+                How to get these?
+              </button>
               
               <form onSubmit={handleManualSave} className="space-y-4">
                  <div className="space-y-1">
@@ -181,7 +188,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <input required placeholder="https://..." className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500" value={manualUrl} onChange={e => setManualUrl(e.target.value)} />
                  </div>
                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Anon API Key</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Anon Key</label>
                     <textarea required rows={3} placeholder="eyJ..." className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-[9px] font-mono leading-tight resize-none outline-none focus:ring-2 focus:ring-indigo-500" value={manualKey} onChange={e => setManualKey(e.target.value)} />
                  </div>
                  <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-95 transition-all">Save & Link Cloud</button>
@@ -190,10 +197,71 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       )}
 
+      {/* Help Guide Modal */}
+      {showHelpGuide && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
+           <div className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[90vh] rounded-[3rem] p-8 shadow-2xl relative overflow-y-auto no-scrollbar animate-in zoom-in duration-300">
+              <button onClick={() => setShowHelpGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={24} /></button>
+              <div className="space-y-6">
+                 <div className="text-center">
+                    <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4"><Zap size={32} /></div>
+                    <h3 className="text-2xl font-black">Cloud Guide</h3>
+                    <p className="text-sm text-slate-400">Setup your personal cloud in 3 steps.</p>
+                 </div>
+
+                 <div className="space-y-6">
+                    <div className="flex space-x-4">
+                       <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                       <div>
+                          <p className="font-bold">Create Supabase Project</p>
+                          <p className="text-xs text-slate-500">Go to <a href="https://supabase.com" target="_blank" className="text-indigo-600 underline">supabase.com</a> and create a "New Project". Choose any name.</p>
+                       </div>
+                    </div>
+                    <div className="flex space-x-4">
+                       <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                       <div>
+                          <p className="font-bold">Copy API Keys</p>
+                          <p className="text-xs text-slate-500">Go to **Settings** (gear) -> **API**. Copy the **URL** and **anon public key**.</p>
+                       </div>
+                    </div>
+                    <div className="flex space-x-4">
+                       <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                       <div className="flex-1">
+                          <p className="font-bold">Create the Table</p>
+                          <p className="text-xs text-slate-500 mb-3">Go to **SQL Editor** in Supabase, click "New Query", paste this code, and click "Run":</p>
+                          <div className="bg-slate-900 rounded-2xl p-4 relative group">
+                             <pre className="text-[10px] text-indigo-300 overflow-x-auto font-mono leading-relaxed">
+{`create table portfolios (
+  user_id uuid references auth.users not null primary key,
+  assets jsonb default '[]'::jsonb,
+  groups jsonb default '[]'::jsonb,
+  transactions jsonb default '[]'::jsonb,
+  currency text default 'USD',
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table portfolios enable row level security;
+
+create policy "Users manage own portfolio" 
+on portfolios for all using (auth.uid() = user_id);`}
+                             </pre>
+                             <button onClick={() => {
+                               navigator.clipboard.writeText(`create table portfolios (user_id uuid references auth.users not null primary key, assets jsonb default '[]'::jsonb, groups jsonb default '[]'::jsonb, transactions jsonb default '[]'::jsonb, currency text default 'USD', updated_at timestamp with time zone default timezone('utc'::text, now()) not null); alter table portfolios enable row level security; create policy "Users manage own portfolio" on portfolios for all using (auth.uid() = user_id);`);
+                             }} className="absolute top-3 right-3 p-2 bg-white/10 text-white rounded-lg"><Copy size={14} /></button>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+                 <button onClick={() => setShowHelpGuide(false)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl">I've done this!</button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Credentials Viewer Modal */}
       {showCredentials && (
         <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative animate-in zoom-in duration-300">
+           <div className="bg-white dark:bg-slate-900 w-full max-sm rounded-[2.5rem] p-8 shadow-2xl relative animate-in zoom-in duration-300">
               <button onClick={() => setShowCredentials(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button>
               <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-2xl flex items-center justify-center mb-4">
                 <ShieldCheck size={24} />
@@ -239,7 +307,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
               <div className="mt-8 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
                  <p className="text-[9px] text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
-                   <b>Note:</b> These keys are required to connect a new browser to your existing data. Store them in a safe place.
+                   <b>Note:</b> These keys link your cloud database. Store them safely.
                  </p>
               </div>
            </div>
@@ -255,11 +323,11 @@ export const Settings: React.FC<SettingsProps> = ({
             <div className="space-y-4">
                <div>
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data Privacy</h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">Your data is stored in your private Supabase instance. Only you (and whoever has your keys) can access it.</p>
+                  <p className="text-xs text-slate-500 leading-relaxed">Your data is stored in your private Supabase instance. Only you can access it.</p>
                </div>
                <div>
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Caching</h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">A copy of your data is kept on this device so the app works offline. It syncs automatically when you go back online.</p>
+                  <p className="text-xs text-slate-500 leading-relaxed">A copy of your data is kept on this device so the app works offline.</p>
                </div>
             </div>
             <button onClick={() => setShowPrivacyNotice(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl active:scale-95 transition-all">Close</button>

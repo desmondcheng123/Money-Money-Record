@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle, RefreshCcw, ExternalLink, Terminal, ChevronRight, Zap, Database, Key } from 'lucide-react';
+import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle, RefreshCcw, ExternalLink, Terminal, ChevronRight, Zap, Database, Key, HelpCircle, X, CheckCircle2, Copy } from 'lucide-react';
 import { User } from '../types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -41,6 +41,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
+  const [showHelpGuide, setShowHelpGuide] = useState(false);
   const [manualUrl, setManualUrl] = useState('');
   const [manualKey, setManualKey] = useState('');
   
@@ -51,7 +52,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     if (manualUrl && manualKey) {
       localStorage.setItem('MANUAL_VITE_SUPABASE_URL', manualUrl.trim());
       localStorage.setItem('MANUAL_VITE_SUPABASE_ANON_KEY', manualKey.trim());
-      window.location.reload(); // Hard reload to re-init Supabase client
+      window.location.reload();
     }
   };
 
@@ -80,6 +81,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           options: { data: { full_name: name } }
         });
         if (signUpError) throw signUpError;
+        
+        // Handling the "Email Confirmation" case for Sign Up
+        if (data.user && data.session === null) {
+          setError("Account created! Please check your email for a confirmation link, or disable 'Email Confirmation' in your Supabase dashboard to login instantly.");
+          setIsProcessing(false);
+          return;
+        }
+
         if (data.user) {
           onLogin({ 
             id: data.user.id, 
@@ -89,7 +98,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         }
       } else {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
+        if (signInError) {
+          // Detect the specific Supabase error for unconfirmed emails
+          if (signInError.message.toLowerCase().includes('email not confirmed')) {
+            throw new Error("Email not confirmed. Please click the link in your inbox, or go to Supabase -> Auth -> Providers -> Email and turn OFF 'Confirm Email'.");
+          }
+          throw signInError;
+        }
         if (data.user) {
           onLogin({ 
             id: data.user.id, 
@@ -108,15 +123,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   if (showManualSetup) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-2xl space-y-6 border border-slate-100 dark:border-slate-800 animate-in zoom-in duration-300">
+        <div className="w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-2xl space-y-6 border border-slate-100 dark:border-slate-800 animate-in zoom-in duration-300 relative overflow-hidden">
            <div className="text-center space-y-2">
               <div className="inline-flex p-4 bg-amber-500 text-white rounded-[2rem] shadow-xl shadow-amber-500/30 mb-2">
                 <Database size={32} />
               </div>
               <h2 className="text-2xl font-bold">Manual Cloud Link</h2>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">
-                Env detection failed. Paste your Supabase keys below to force a connection.
-              </p>
+              <button 
+                onClick={() => setShowHelpGuide(true)}
+                className="inline-flex items-center text-[10px] text-amber-600 font-black uppercase tracking-widest hover:underline"
+              >
+                <HelpCircle size={12} className="mr-1" /> How to get these?
+              </button>
            </div>
 
            <form onSubmit={handleManualSave} className="space-y-4">
@@ -135,7 +153,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
               <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
                  <p className="text-[9px] text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
-                    Once saved, the app will reload and connect. This bypasses Vercel's environment variable issues.
+                    Once saved, the app will reload and connect. This bypasses server detection issues.
                  </p>
               </div>
 
@@ -145,6 +163,75 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               </div>
            </form>
         </div>
+
+        {showHelpGuide && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+             <div className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[90vh] rounded-[3rem] p-8 shadow-2xl relative overflow-y-auto no-scrollbar animate-in zoom-in duration-300">
+                <button onClick={() => setShowHelpGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={24} /></button>
+                <div className="space-y-6">
+                   <div className="text-center">
+                      <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4"><Zap size={32} /></div>
+                      <h3 className="text-2xl font-black">Cloud Vault Setup</h3>
+                      <p className="text-sm text-slate-400">Complete these 3 steps to sync everywhere.</p>
+                   </div>
+
+                   <div className="space-y-6">
+                      <div className="flex space-x-4">
+                         <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                         <div>
+                            <p className="font-bold">Create Supabase Project</p>
+                            <p className="text-xs text-slate-500">Go to <a href="https://supabase.com" target="_blank" className="text-indigo-600 underline">supabase.com</a>, sign up, and create a "New Project". Choose any name you like.</p>
+                         </div>
+                      </div>
+
+                      <div className="flex space-x-4">
+                         <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                         <div>
+                            <p className="font-bold">Copy API Keys</p>
+                            <p className="text-xs text-slate-500">Go to **Settings** (gear) -> **API**. Copy the **Project URL** and the **anon public key** into the screen behind this popup.</p>
+                         </div>
+                      </div>
+
+                      <div className="flex space-x-4">
+                         <div className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                         <div className="flex-1">
+                            <p className="font-bold">Run Database Script</p>
+                            <p className="text-xs text-slate-500 mb-3">Go to **SQL Editor** (icon looks like `>_`) in Supabase, click "New Query", paste this code, and click "Run":</p>
+                            <div className="bg-slate-900 rounded-2xl p-4 relative group">
+                               <pre className="text-[10px] text-indigo-300 overflow-x-auto font-mono leading-relaxed">
+{`create table portfolios (
+  user_id uuid references auth.users not null primary key,
+  assets jsonb default '[]'::jsonb,
+  groups jsonb default '[]'::jsonb,
+  transactions jsonb default '[]'::jsonb,
+  currency text default 'USD',
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table portfolios enable row level security;
+
+create policy "Users can manage their own portfolio" 
+on portfolios for all 
+using (auth.uid() = user_id);`}
+                               </pre>
+                               <button 
+                                 onClick={() => {
+                                   navigator.clipboard.writeText(`create table portfolios (user_id uuid references auth.users not null primary key, assets jsonb default '[]'::jsonb, groups jsonb default '[]'::jsonb, transactions jsonb default '[]'::jsonb, currency text default 'USD', updated_at timestamp with time zone default timezone('utc'::text, now()) not null); alter table portfolios enable row level security; create policy "Users can manage their own portfolio" on portfolios for all using (auth.uid() = user_id);`);
+                                 }}
+                                 className="absolute top-3 right-3 p-2 bg-white/10 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                               >
+                                  <Copy size={14} />
+                               </button>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+
+                   <button onClick={() => setShowHelpGuide(false)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl mt-4">Got it, Let's go!</button>
+                </div>
+             </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -218,9 +305,16 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </div>
 
             {error && (
-              <div className="flex items-center space-x-2 bg-rose-50 p-3 rounded-xl border border-rose-100 animate-in shake duration-300">
-                <Info size={14} className="text-rose-500 shrink-0" />
-                <p className="text-[10px] font-bold text-rose-600">{error}</p>
+              <div className="flex flex-col space-y-2 bg-rose-50 p-4 rounded-xl border border-rose-100 animate-in shake duration-300">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] font-bold text-rose-600 leading-relaxed">{error}</p>
+                </div>
+                {error.toLowerCase().includes('confirm email') && (
+                  <div className="pt-2 border-t border-rose-100">
+                    <p className="text-[9px] text-rose-500 font-medium">Tip: Supabase -> Auth -> Providers -> Email -> Toggle OFF "Confirm Email"</p>
+                  </div>
+                )}
               </div>
             )}
 
