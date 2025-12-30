@@ -23,12 +23,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentScreen, setCurr
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <main className="pb-20">
+      <main className="pb-24">
         {children}
       </main>
 
-      <nav className={`fixed bottom-0 left-0 right-0 border-t z-50 transition-colors duration-300 ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'} backdrop-blur-md`}>
-        <div className="max-w-2xl mx-auto flex justify-around items-center h-16 px-2">
+      <nav className={`fixed bottom-0 left-0 right-0 border-t z-50 transition-colors duration-300 ios-safe-bottom ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'} backdrop-blur-md`}>
+        <div className="max-w-2xl mx-auto flex justify-around items-center h-full px-2">
           {navItems.map((item) => (
             <button
               key={item.id}
