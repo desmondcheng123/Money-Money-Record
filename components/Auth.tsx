@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle, RefreshCcw, ExternalLink, Terminal, ChevronRight } from 'lucide-react';
+import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle, RefreshCcw, ExternalLink, Terminal, ChevronRight, Zap } from 'lucide-react';
 import { User } from '../types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -117,39 +117,45 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         </div>
 
         {!isCloudReady && (
-          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-6 rounded-[2.5rem] shadow-sm space-y-5">
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-6 rounded-[2.5rem] shadow-sm space-y-5 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <Zap size={80} className="text-amber-500" />
+             </div>
+
              <div className="flex items-start space-x-3">
                 <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
                 <div className="space-y-1">
-                   <p className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase tracking-tight">Manual Redeploy Required</p>
+                   <p className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase tracking-tight">Vercel Build Cache Detected</p>
                    <p className="text-[10px] text-amber-700/70 dark:text-amber-300/50 leading-relaxed font-medium">
-                      Your keys are set in Vercel, but the current build is stale. Follow these steps to activate sync:
+                      Your keys are configured, but Vercel is serving an old version of the site from its cache. 
                    </p>
                 </div>
              </div>
              
-             <div className="space-y-2">
-                <div className="flex items-center space-x-3 p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
-                   <div className="w-5 h-5 bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-200 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0">1</div>
-                   <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Open <span className="text-indigo-600">Vercel Dashboard</span></p>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
-                   <div className="w-5 h-5 bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-200 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0">2</div>
-                   <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Go to <span className="text-indigo-600 font-black">DEPLOYMENTS</span> tab</p>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
-                   <div className="w-5 h-5 bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-200 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0">3</div>
-                   <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Click <span className="text-rose-600 font-black">REDEPLOY</span> on latest build</p>
-                </div>
+             <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30 space-y-4">
+                <h4 className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest flex items-center">
+                   <RefreshCcw size={12} className="mr-2" /> 
+                   Force-Clear Fix
+                </h4>
+                <ol className="space-y-3">
+                   <li className="flex items-start space-x-3">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-800 text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
+                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Click <b>Redeploy</b> in Vercel Deployments</p>
+                   </li>
+                   <li className="flex items-start space-x-3">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-800 text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
+                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">UNCHECK <span className="text-rose-600">"Redeploy with Build Cache"</span></p>
+                   </li>
+                </ol>
              </div>
              
              <div className="grid grid-cols-2 gap-2">
                 <a 
                   href="https://vercel.com/dashboard"
                   target="_blank"
-                  className="py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center justify-center"
+                  className="py-3 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-600/20 hover:bg-amber-600 transition-all flex items-center justify-center"
                 >
-                  Go to Vercel
+                  Vercel Dashboard
                   <ExternalLink size={12} className="ml-1.5" />
                 </a>
                 <button 
@@ -157,17 +163,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   className="py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-all flex items-center justify-center"
                 >
                   <Terminal size={12} className="mr-1.5" />
-                  Check Logs
+                  System Check
                 </button>
              </div>
 
              {showDebug && (
-               <div className="p-4 bg-slate-900 rounded-2xl font-mono text-[9px] space-y-1 overflow-x-auto border border-slate-800 animate-in fade-in duration-300">
-                  <p className="text-indigo-400 font-bold mb-1">// ENV INSPECTOR</p>
-                  <p className="text-slate-400">URL: <span className={supabaseUrl ? 'text-emerald-400' : 'text-rose-400'}>{supabaseUrl ? 'FOUND' : 'NULL (Waiting for Redeploy)'}</span></p>
-                  <p className="text-slate-400">KEY: <span className={supabaseAnonKey ? 'text-emerald-400' : 'text-rose-400'}>{supabaseAnonKey ? 'FOUND' : 'NULL (Waiting for Redeploy)'}</span></p>
-                  <div className="mt-3 pt-3 border-t border-slate-800 text-[8px] text-slate-500 uppercase font-black">
-                     Expected Prefixes: VITE_SUPABASE_URL
+               <div className="p-4 bg-slate-900 rounded-2xl font-mono text-[9px] space-y-2 overflow-x-auto border border-slate-800 animate-in fade-in duration-300">
+                  <p className="text-indigo-400 font-bold mb-1">// DEBUG REPORT</p>
+                  <p className="text-slate-400">VITE_SUPABASE_URL: <span className={supabaseUrl ? 'text-emerald-400' : 'text-rose-400'}>{supabaseUrl ? 'BAKED_OK' : 'MISSING'}</span></p>
+                  <p className="text-slate-400">VITE_SUPABASE_ANON: <span className={supabaseAnonKey ? 'text-emerald-400' : 'text-rose-400'}>{supabaseAnonKey ? 'BAKED_OK' : 'MISSING'}</span></p>
+                  <div className="mt-3 pt-3 border-t border-slate-800 text-[8px] text-slate-500 uppercase font-black leading-relaxed">
+                     If 'MISSING' above, your Vercel build did not pick up the keys. A fresh redeploy with NO CACHE is the only fix.
                   </div>
                </div>
              )}

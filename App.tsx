@@ -8,35 +8,37 @@ import { Auth } from './components/Auth';
 import { Screen, Asset, Transaction, TransactionType, AssetGroup, PricePoint, User } from './types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Bulletproof environment variable detector
-const getEnvVar = (key: string): string => {
-  // 1. Check Vite's standard location
+// Absolute Final Environment Variable Detection logic
+const getEnv = (key: string): string => {
+  let val = '';
   try {
-    const metaEnv = (import.meta as any).env;
-    if (metaEnv && metaEnv[key]) return metaEnv[key];
-  } catch (e) {}
-
-  // 2. Check standard Node/Vercel location
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      return process.env[key] as string;
+    // 1. Vite Standard
+    val = (import.meta as any).env[key] || '';
+    if (val) return val;
+    
+    // 2. Process Env (Vercel Node/Edge)
+    if (typeof process !== 'undefined' && process.env) {
+      val = process.env[key] || '';
+      if (val) return val;
+    }
+    
+    // 3. Global Window Injection
+    if (typeof window !== 'undefined') {
+      const win = window as any;
+      val = win[key] || win._env_?.[key] || win.process?.env?.[key] || '';
     }
   } catch (e) {}
-
-  // 3. Check window-injected location (used by some CI/CD tools)
-  try {
-    const win = window as any;
-    if (win.process?.env?.[key]) return win.process.env[key];
-    if (win._env_?.[key]) return win._env_[key];
-  } catch (e) {}
-
-  return '';
+  return val;
 };
 
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+const supabaseUrl = getEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
-// Initialize Supabase only if both keys are actually strings with content
+// Logging for user debugging
+console.log('%c[MONEY RECORD SYSTEM CHECK]', 'color: #4f46e5; font-weight: bold; font-size: 12px;');
+console.log('Supabase URL found:', supabaseUrl ? 'YES (Baking Successful)' : 'NO (Stale Build)');
+console.log('Supabase Key found:', supabaseAnonKey ? 'YES (Baking Successful)' : 'NO (Stale Build)');
+
 const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
@@ -69,7 +71,6 @@ const App: React.FC = () => {
     if (!userId) return;
     setSyncState('SAVING');
     
-    // DEMO USER
     if (userId === 'demo_user') {
       const suffix = '_demo';
       setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
@@ -80,7 +81,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // CLOUD MODE
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -115,7 +115,6 @@ const App: React.FC = () => {
         setSyncState('ERROR');
       }
     } else {
-      // Local Fallback
       const suffix = `_${userId}`;
       setAssets(JSON.parse(localStorage.getItem(`zeninvest_assets${suffix}`) || '[]'));
       setGroups(JSON.parse(localStorage.getItem(`zeninvest_groups${suffix}`) || '[]'));
@@ -129,7 +128,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (supabase && currentUser && currentUser.id !== 'demo_user') {
       const channel = supabase
-        .channel(`sync_v4_${currentUser.id}`)
+        .channel(`sync_v5_${currentUser.id}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'portfolios', filter: `user_id=eq.${currentUser.id}` }, 
           (payload) => {
             const cloudDate = payload.new.updated_at;
