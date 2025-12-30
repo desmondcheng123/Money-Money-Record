@@ -1,12 +1,22 @@
-
 import React, { useState } from 'react';
 import { User as UserIcon, Rocket, ShieldCheck, ArrowRight, UserPlus, LogIn, Sparkles, Mail, Lock, Info, Cloud, CloudOff, AlertCircle } from 'lucide-react';
 import { User } from '../types';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Access variables via process.env as per environment configuration to avoid ImportMeta.env errors in this environment
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+// Access variables via standardized helper
+const getEnvValue = (key: string): string => {
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    const val = (import.meta as any).env[key];
+    if (val) return val;
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || '';
+  }
+  return '';
+};
+
+const supabaseUrl = getEnvValue('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvValue('VITE_SUPABASE_ANON_KEY');
 const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 interface AuthProps {

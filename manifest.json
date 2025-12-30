@@ -1,12 +1,12 @@
-
 {
-  "short_name": "ZenInvest",
-  "name": "ZenInvest Portfolio Tracker",
+  "short_name": "MoneyRecord",
+  "name": "Money Money Record",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2534/2534183.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "start_url": ".",
