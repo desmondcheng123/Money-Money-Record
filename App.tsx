@@ -55,21 +55,17 @@ const App: React.FC = () => {
   }, [assets, groups, transactions, persistChanges, hasLoadedInitialData]);
 
   const handleImportVault = (data: any) => {
-    // SECURITY: Integrity Check
     if (!data || typeof data !== 'object') {
       alert("Error: Invalid file format.");
       return;
     }
-
     if (!Array.isArray(data.assets) || !Array.isArray(data.transactions)) {
-      alert("Error: This file is missing essential portfolio data. Import cancelled to protect your current records.");
+      alert("Error: This file is missing essential portfolio data.");
       return;
     }
-
     if (data.assets) setAssets(data.assets);
     if (data.groups) setGroups(data.groups);
     if (data.transactions) setTransactions(data.transactions);
-    
     setHasUnsavedChanges(true);
     setTimeout(() => persistChanges(), 100);
     alert("Vault Restored! Data Integrity Verified.");
@@ -83,21 +79,13 @@ const App: React.FC = () => {
       groups, 
       transactions, 
       currency,
-      metadata: {
-        app: "Money Money Record",
-        owner: currentUser.name
-      }
+      metadata: { app: "Money Money Record", owner: currentUser.name }
     };
-    
-    // Export with 2-space indentation for human readability (easier to fix if ever "corrupted")
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    
-    // Better timestamping: YYYY-MM-DD-HHMM
     const now = new Date();
     const ts = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
-    
     link.href = url;
     link.download = `Vault-${ts}.money`;
     link.click();
@@ -135,17 +123,31 @@ const App: React.FC = () => {
     return { totalValue, totalInvested, totalReturn, totalReturnPercentage };
   }, [assets]);
 
+  // FIX: Aggregate history by DATE (YYYY-MM-DD) instead of full ISO timestamp
   const portfolioHistory = useMemo(() => {
-    const allTimestamps: string[] = Array.from(new Set<string>(assets.flatMap(a => a.priceHistory.map(p => p.date)))).sort();
-    if (allTimestamps.length === 0) return [];
-    return allTimestamps.map((timestamp: string) => {
-      const value = assets.reduce((acc, asset) => {
-        const exactPoint = asset.priceHistory.find(p => p.date === timestamp);
-        if (exactPoint) return acc + exactPoint.value;
-        const prevPoints = asset.priceHistory.filter(p => p.date < timestamp).sort((a, b) => b.date.localeCompare(a.date));
-        return acc + (prevPoints.length > 0 ? prevPoints[0].value : 0);
+    // Collect every unique date string (YYYY-MM-DD) from all assets
+    const allDateStrings = Array.from(new Set<string>(
+      assets.flatMap(a => a.priceHistory.map(p => p.date.split('T')[0]))
+    )).sort();
+
+    if (allDateStrings.length === 0) return [];
+
+    return allDateStrings.map((dateStr: string) => {
+      const valueAtEndOfDay = assets.reduce((acc, asset) => {
+        // Find points for this asset on or before this date
+        const relevantPoints = asset.priceHistory.filter(p => p.date.split('T')[0] <= dateStr);
+        if (relevantPoints.length === 0) return acc;
+        
+        // The "latest" point for this day is the one with the highest ISO string (most recent)
+        const latestPoint = relevantPoints.sort((a, b) => b.date.localeCompare(a.date))[0];
+        return acc + latestPoint.value;
       }, 0);
-      return { date: new Date(timestamp).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }), fullDate: timestamp, value };
+
+      return { 
+        date: new Date(dateStr).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }), 
+        fullDate: dateStr, 
+        value: valueAtEndOfDay 
+      };
     });
   }, [assets]);
 
@@ -173,7 +175,7 @@ const App: React.FC = () => {
     <div className="dark min-h-screen bg-slate-950">
       <Layout currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} isDarkMode={isDarkMode} currentUser={currentUser}>
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-24 min-h-screen">
-          {currentScreen === Screen.DASHBOARD && <Dashboard stats={portfolioStats} assets={assets} groups={groups} portfolioHistory={portfolioHistory} currency={currency} onAssetClick={handleAssetClick} onAddAsset={handleAddAsset} onAddGroup={handleAddGroup} onDeleteGroup={handleDeleteGroup} onMoveToGroup={handleMoveToGroup} onReorderAssets={handleReorderAssets} transactions={transactions} hasUnsavedChanges={hasUnsavedChanges} onExportVault={handleExportVault} />}
+          {currentScreen === Screen.DASHBOARD && <Dashboard stats={portfolioStats} assets={assets} groups={groups} portfolioHistory={portfolioHistory} currency={currency} onAssetClick={handleAssetClick} onAddAsset={handleAddAsset} onAddGroup={handleAddGroup} onDeleteGroup={handleDeleteGroup} onMoveToGroup={handleDeleteGroup} onReorderAssets={handleReorderAssets} transactions={transactions} hasUnsavedChanges={hasUnsavedChanges} onExportVault={handleExportVault} />}
           {currentScreen === Screen.ACTIVITY && <Activity transactions={transactions} currency={currency} />}
           {currentScreen === Screen.SETTINGS && <Settings onResetData={handleResetData} currentUser={currentUser} onImportVault={handleImportVault} onExportVault={handleExportVault} assets={assets} transactions={transactions} />}
           {currentScreen === Screen.ASSET_DETAIL && selectedAssetId && assets.find(a => a.id === selectedAssetId) && <AssetDetail asset={assets.find(a => a.id === selectedAssetId)!} transactions={transactions.filter(t => t.assetId === selectedAssetId)} currency={currency} onBack={() => setCurrentScreen(Screen.DASHBOARD)} onDelete={() => handleDeleteAsset(selectedAssetId)} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onUpdateAsset={handleUpdateAsset} />}

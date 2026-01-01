@@ -43,9 +43,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
       const maxScroll = scrollWidth - clientWidth;
-      if (maxScroll > 0) {
-        setSliderVal((scrollLeft / maxScroll) * 100);
-      }
+      if (maxScroll > 0) setSliderVal((scrollLeft / maxScroll) * 100);
     }
   };
 
@@ -70,13 +68,9 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
   }, [asset.priceHistory]);
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(val);
+    return new Intl.NumberFormat('en-MY', { style: 'currency', currency: currency }).format(val);
   };
 
-  // Calculations for Stats
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
 
@@ -90,21 +84,26 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
   const recentChangeAmt = asset.currentValue - lastValue;
   const recentChangePct = lastValue > 0 ? (recentChangeAmt / lastValue) * 100 : 0;
 
+  // FIX: Group price history by date for the chart
+  const groupedPriceHistory = useMemo(() => {
+    const dates = Array.from(new Set<string>(asset.priceHistory.map(p => p.date.split('T')[0]))).sort();
+    return dates.map(dateStr => {
+      const relevant = asset.priceHistory.filter(p => p.date.split('T')[0] === dateStr);
+      const latest = relevant.sort((a, b) => b.date.localeCompare(a.date))[0];
+      return { 
+        date: dateStr, 
+        value: latest.value 
+      };
+    });
+  }, [asset.priceHistory]);
+
   const handleRecordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const [year, month, day] = txFormData.date.split('-').map(Number);
     const localDate = new Date(year, month - 1, day);
     const now = new Date();
     localDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
-
-    onAddTransaction({
-      assetId: asset.id,
-      ticker: asset.ticker,
-      type: txFormData.type,
-      amount: parseFloat(txFormData.amount),
-      date: localDate.toISOString(), 
-    });
-    
+    onAddTransaction({ assetId: asset.id, ticker: asset.ticker, type: txFormData.type, amount: parseFloat(txFormData.amount), date: localDate.toISOString() });
     setIsRecording(false);
     setTxFormData({ type: TransactionType.BUY, amount: '', date: new Date().toISOString().split('T')[0] });
   };
@@ -112,13 +111,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
   const handleSavePrice = () => {
     const newPrice = parseFloat(tempPrice);
     if (!isNaN(newPrice) && newPrice !== asset.currentValue) {
-      onAddTransaction({
-        assetId: asset.id,
-        ticker: asset.ticker,
-        type: TransactionType.PRICE_UPDATE,
-        amount: newPrice,
-        date: new Date().toISOString(),
-      });
+      onAddTransaction({ assetId: asset.id, ticker: asset.ticker, type: TransactionType.PRICE_UPDATE, amount: newPrice, date: new Date().toISOString() });
     }
     setIsEditingPrice(false);
   };
@@ -127,53 +120,32 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => { 
-        setInfoFormData(prev => ({ ...prev, icon: reader.result as string })); 
-      };
+      reader.onloadend = () => { setInfoFormData(prev => ({ ...prev, icon: reader.result as string })); };
       reader.readAsDataURL(file);
     }
   };
 
   const handleInfoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateAsset(asset.id, {
-      ticker: infoFormData.ticker.toUpperCase(),
-      name: infoFormData.name,
-      category: infoFormData.category,
-      icon: infoFormData.icon,
-    });
+    onUpdateAsset(asset.id, { ticker: infoFormData.ticker.toUpperCase(), name: infoFormData.name, category: infoFormData.category, icon: infoFormData.icon });
     setIsEditingInfo(false);
-  };
-
-  const formatChartDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   };
 
   const formatXAxis = (tickItem: string) => {
     const d = new Date(tickItem);
     const now = new Date();
-    if (d.getFullYear() !== now.getFullYear()) {
-      return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-    }
+    if (d.getFullYear() !== now.getFullYear()) return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   const chartWidth = useMemo(() => {
-    const minWidth = 400;
-    const widthPerPoint = 50;
-    return Math.max(minWidth, asset.priceHistory.length * widthPerPoint);
-  }, [asset.priceHistory]);
+    return Math.max(400, groupedPriceHistory.length * 50);
+  }, [groupedPriceHistory]);
 
   const renderCustomizedDot = (props: any) => {
     const { cx, cy, payload } = props;
     if (!showPurchaseDots) return null;
-
-    const hasPurchase = transactions.some(t => 
-      t.type === TransactionType.BUY && 
-      new Date(t.date).toDateString() === new Date(payload.date).toDateString()
-    );
-
+    const hasPurchase = transactions.some(t => t.type === TransactionType.BUY && new Date(t.date).toDateString() === new Date(payload.date).toDateString());
     if (hasPurchase) {
       const color = returnAmt >= 0 ? "#10b981" : "#f43f5e";
       return (
@@ -200,7 +172,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
       )}
 
       {isRecording && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"><div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative"><button onClick={() => setIsRecording(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button><h3 className="text-xl font-bold mb-6">Record Activity</h3><form onSubmit={handleRecordSubmit} className="space-y-4"><div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">{([TransactionType.BUY, TransactionType.SELL, TransactionType.DIVIDEND, TransactionType.PRICE_UPDATE]).map(t => (<button key={t} type="button" onClick={() => setTxFormData({...txFormData, type: t})} className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${txFormData.type === t ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}>{t.replace('_', ' ')}</button>))}</div><div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Amount ($)</label><input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" value={txFormData.amount} onChange={e => setTxFormData({...txFormData, amount: e.target.value})} /></div><div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Date</label><input required type="date" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 outline-none" value={txFormData.date} onChange={e => setTxFormData({...txFormData, date: e.target.value})} /></div><button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl">Confirm Action</button></form></div></div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"><div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative"><button onClick={() => setIsRecording(false)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20} /></button><h3 className="text-xl font-bold mb-6">Record Activity</h3><form onSubmit={handleRecordSubmit} className="space-y-4"><div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">{([TransactionType.BUY, TransactionType.SELL, TransactionType.DIVIDEND, TransactionType.PRICE_UPDATE]).map(t => (<button key={t} type="button" onClick={() => setTxFormData({...txFormData, type: t})} className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${txFormData.type === t ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}>{t.replace('_', ' ')}</button>))}</div><div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Amount (MYR)</label><input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" value={txFormData.amount} onChange={e => setTxFormData({...txFormData, amount: e.target.value})} /></div><div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Date</label><input required type="date" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 outline-none" value={txFormData.date} onChange={e => setTxFormData({...txFormData, date: e.target.value})} /></div><button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl">Confirm Action</button></form></div></div>
       )}
 
       {isEditingInfo && (
@@ -214,7 +186,6 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
                   {infoFormData.icon ? <img src={infoFormData.icon} className="w-full h-full object-cover" /> : <><Camera size={24} className="text-slate-400 mb-1 group-hover:text-indigo-500" /><span className="text-[10px] text-slate-400 font-bold uppercase">Icon</span></>}
                 </div>
                 <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageChange} />
-                <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">Click to change icon</p>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Ticker</label>
@@ -247,8 +218,8 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
                 {isEditingPrice ? (
                   <div className="flex items-center space-x-2 w-full animate-in fade-in duration-200">
                     <div className="relative flex-1">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                      <input autoFocus type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-indigo-500 rounded-2xl pl-8 pr-4 py-2 text-2xl font-bold outline-none" value={tempPrice} onChange={(e) => setTempPrice(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSavePrice(); if (e.key === 'Escape') setIsEditingPrice(false); }} />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">RM</span>
+                      <input autoFocus type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-indigo-500 rounded-2xl pl-12 pr-4 py-2 text-2xl font-bold outline-none" value={tempPrice} onChange={(e) => setTempPrice(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSavePrice(); if (e.key === 'Escape') setIsEditingPrice(false); }} />
                     </div>
                     <button onClick={handleSavePrice} className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg"><Check size={20} /></button>
                     <button onClick={() => setIsEditingPrice(false)} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl"><X size={20} /></button>
@@ -261,17 +232,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-end space-y-1">
-              <button 
-                onClick={() => setShowPurchaseDots(!showPurchaseDots)}
-                className={`flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-bold transition-all ${showPurchaseDots ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
-              >
-                <Target size={12} />
-                <span>DOTS</span>
-              </button>
-            </div>
           </div>
-
           <div className="flex space-x-6 items-center border-t border-slate-50 dark:border-slate-800 pt-3 mt-1">
             <div className="flex flex-col">
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Recent Movement</span>
@@ -290,46 +251,19 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
         </div>
 
         <div className="mt-6 border-t border-slate-100 dark:border-slate-800">
-          <div 
-            ref={scrollContainerRef}
-            onScroll={handleScroll}
-            className="overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing"
-          >
+          <div ref={scrollContainerRef} onScroll={handleScroll} className="overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing">
             <div style={{ width: chartWidth }} className="h-64 px-4 py-6">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={asset.priceHistory} margin={{ top: 10, bottom: 0, left: -20, right: 10 }}>
+                <AreaChart data={groupedPriceHistory} margin={{ top: 10, bottom: 0, left: -20, right: 10 }}>
                   <defs>
                     <linearGradient id="colorAsset" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={returnAmt >= 0 ? "#10b981" : "#f43f5e"} stopOpacity={0.1}/>
                       <stop offset="95%" stopColor={returnAmt >= 0 ? "#10b981" : "#f43f5e"} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} 
-                    tickFormatter={formatXAxis}
-                    dy={10}
-                    interval={asset.priceHistory.length > 10 ? Math.floor(asset.priceHistory.length / 8) : 0}
-                  />
-                  <Tooltip 
-                    labelFormatter={(label) => formatChartDateLabel(label)}
-                    contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#1e293b', padding: '12px' }} 
-                    labelStyle={{ color: returnAmt >= 0 ? '#34d399' : '#fb7185', fontWeight: 800, fontSize: '10px' }}
-                    itemStyle={{ color: '#f8fafc', fontSize: '14px', fontWeight: 700 }}
-                    formatter={(value: number) => [formatCurrency(value), 'Value']} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke={returnAmt >= 0 ? "#10b981" : "#f43f5e"} 
-                    strokeWidth={3} 
-                    fillOpacity={1} 
-                    fill="url(#colorAsset)" 
-                    animationDuration={1000} 
-                    dot={renderCustomizedDot}
-                  />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} tickFormatter={formatXAxis} dy={10} interval={groupedPriceHistory.length > 10 ? Math.floor(groupedPriceHistory.length / 8) : 0} />
+                  <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#1e293b', padding: '12px' }} labelStyle={{ color: returnAmt >= 0 ? '#34d399' : '#fb7185', fontWeight: 800, fontSize: '10px' }} itemStyle={{ color: '#f8fafc', fontSize: '14px', fontWeight: 700 }} formatter={(value: number) => [formatCurrency(value), 'Value']} />
+                  <Area type="monotone" dataKey="value" stroke={returnAmt >= 0 ? "#10b981" : "#f43f5e"} strokeWidth={3} fillOpacity={1} fill="url(#colorAsset)" animationDuration={1000} dot={renderCustomizedDot} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -339,22 +273,9 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
         <div className="px-8 pb-6 pt-2">
           <div className="flex items-center space-x-4">
              <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Past</span>
-             <input 
-               type="range" 
-               min="0" 
-               max="100" 
-               step="0.1"
-               value={sliderVal}
-               onChange={handleSliderChange}
-               className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-600 focus:outline-none"
-             />
-             <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Present</span>
+             <input type="range" min="0" max="100" step="0.1" value={sliderVal} onChange={handleSliderChange} className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-600 focus:outline-none" />
+             <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Now</span>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
-          <div><p className="text-[10px] text-slate-400 font-bold uppercase">Invested</p><p className="font-bold">{formatCurrency(asset.totalInvested)}</p></div>
-          <div><p className="text-[10px] text-slate-400 font-bold uppercase">Category</p><p className="font-bold">{asset.category}</p></div>
         </div>
       </div>
 
@@ -365,7 +286,6 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
             <div key={t.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex justify-between items-center group">
               <div className="flex items-center space-x-3"><button onClick={() => onDeleteTransaction(t.id)} className="p-1.5 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button><div><p className="text-xs font-bold">{t.type.replace('_', ' ')}</p><p className="text-[10px] text-slate-400">{new Date(t.date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p></div></div>
               <p className={`font-bold text-sm ${t.type === TransactionType.SELL ? 'text-rose-500' : t.type === TransactionType.DIVIDEND ? 'text-emerald-500' : t.type === TransactionType.PRICE_UPDATE ? 'text-indigo-500' : ''}`}>
-                {t.type === TransactionType.SELL ? '-' : t.type === TransactionType.DIVIDEND || t.type === TransactionType.PRICE_UPDATE ? '' : ''}
                 {formatCurrency(t.amount)}
               </p>
             </div>
