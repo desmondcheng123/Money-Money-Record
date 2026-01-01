@@ -48,7 +48,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  // FIX: Destructure from scrollContainerRef.current instead of using variables before declaration
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
     setSliderVal(val);
@@ -115,7 +114,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return null;
   };
 
-  // DRAG & DROP REORDERING LOGIC
   const handleDragStart = (id: string) => {
     setTimeout(() => setDraggedAssetId(id), 0);
   };
@@ -197,7 +195,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </header>
 
       <div className="space-y-4">
-        {/* Performance Chart Section */}
         <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Performance</h3>
@@ -243,20 +240,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* PIE CHARTS SECTION - FIXED 100% CIRCLE GAP */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6 min-h-[160px]">
             {allocationData.length > 0 ? (
               <>
                 <div className="w-1/3 h-32 relative">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                       <Pie 
                         data={allocationData} 
                         cx="50%" 
                         cy="50%" 
-                        innerRadius={35} 
-                        outerRadius={50} 
+                        innerRadius="70%" 
+                        outerRadius="95%" 
                         paddingAngle={allocationData.length > 1 ? 4 : 0} 
                         dataKey="value" 
                         animationDuration={1000}
@@ -296,13 +292,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <>
                 <div className="w-1/3 h-32 relative">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                       <Pie 
                         data={categoryData} 
                         cx="50%" 
                         cy="50%" 
-                        innerRadius={35} 
-                        outerRadius={50} 
+                        innerRadius="70%" 
+                        outerRadius="95%" 
                         paddingAngle={categoryData.length > 1 ? 4 : 0} 
                         dataKey="value" 
                         animationDuration={1000}
