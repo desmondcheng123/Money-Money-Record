@@ -123,9 +123,7 @@ const App: React.FC = () => {
     return { totalValue, totalInvested, totalReturn, totalReturnPercentage };
   }, [assets]);
 
-  // FIX: Aggregate history by DATE (YYYY-MM-DD) instead of full ISO timestamp
   const portfolioHistory = useMemo(() => {
-    // Collect every unique date string (YYYY-MM-DD) from all assets
     const allDateStrings = Array.from(new Set<string>(
       assets.flatMap(a => a.priceHistory.map(p => p.date.split('T')[0]))
     )).sort();
@@ -134,11 +132,8 @@ const App: React.FC = () => {
 
     return allDateStrings.map((dateStr: string) => {
       const valueAtEndOfDay = assets.reduce((acc, asset) => {
-        // Find points for this asset on or before this date
         const relevantPoints = asset.priceHistory.filter(p => p.date.split('T')[0] <= dateStr);
         if (relevantPoints.length === 0) return acc;
-        
-        // The "latest" point for this day is the one with the highest ISO string (most recent)
         const latestPoint = relevantPoints.sort((a, b) => b.date.localeCompare(a.date))[0];
         return acc + latestPoint.value;
       }, 0);
@@ -167,7 +162,12 @@ const App: React.FC = () => {
   const handleDeleteTransaction = (txId: string) => { const txToDelete = transactions.find(t => t.id === txId); const updatedTransactions = transactions.filter(t => t.id !== txId); setTransactions(updatedTransactions); if (txToDelete) syncAssetWithTransactions(txToDelete.assetId, updatedTransactions); };
   const handleAddGroup = (name: string) => { setGroups(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name, color: '#6366f1' }]); };
   const handleDeleteGroup = (groupId: string) => { setAssets(prev => prev.map(a => a.groupId === groupId ? { ...a, groupId: undefined } : a)); setGroups(prev => prev.filter(g => g.id !== groupId)); };
-  const handleMoveToGroup = (assetId: string, groupId?: string) => setAssets(prev => prev.map(a => a.id === assetId ? { ...a, groupId } : a));
+  
+  // FIX: handleMoveToGroup correctly reassigns an asset to a group (or undefined)
+  const handleMoveToGroup = (assetId: string, groupId?: string) => {
+    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, groupId } : a));
+  };
+  
   const handleReorderAssets = (newAssets: Asset[]) => setAssets(newAssets.map((a, i) => ({ ...a, order: i })));
   const handleResetData = () => { if (window.confirm("Wipe all local data? This cannot be undone!")) { setAssets([]); setGroups([]); setTransactions([]); localStorage.clear(); window.location.reload(); } };
 
@@ -175,7 +175,24 @@ const App: React.FC = () => {
     <div className="dark min-h-screen bg-slate-950">
       <Layout currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} isDarkMode={isDarkMode} currentUser={currentUser}>
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-24 min-h-screen">
-          {currentScreen === Screen.DASHBOARD && <Dashboard stats={portfolioStats} assets={assets} groups={groups} portfolioHistory={portfolioHistory} currency={currency} onAssetClick={handleAssetClick} onAddAsset={handleAddAsset} onAddGroup={handleAddGroup} onDeleteGroup={handleDeleteGroup} onMoveToGroup={handleDeleteGroup} onReorderAssets={handleReorderAssets} transactions={transactions} hasUnsavedChanges={hasUnsavedChanges} onExportVault={handleExportVault} />}
+          {currentScreen === Screen.DASHBOARD && (
+            <Dashboard 
+              stats={portfolioStats} 
+              assets={assets} 
+              groups={groups} 
+              portfolioHistory={portfolioHistory} 
+              currency={currency} 
+              onAssetClick={handleAssetClick} 
+              onAddAsset={handleAddAsset} 
+              onAddGroup={handleAddGroup} 
+              onDeleteGroup={handleDeleteGroup} 
+              onMoveToGroup={handleMoveToGroup} // CORRECTED PROP
+              onReorderAssets={handleReorderAssets} 
+              transactions={transactions} 
+              hasUnsavedChanges={hasUnsavedChanges} 
+              onExportVault={handleExportVault} 
+            />
+          )}
           {currentScreen === Screen.ACTIVITY && <Activity transactions={transactions} currency={currency} />}
           {currentScreen === Screen.SETTINGS && <Settings onResetData={handleResetData} currentUser={currentUser} onImportVault={handleImportVault} onExportVault={handleExportVault} assets={assets} transactions={transactions} />}
           {currentScreen === Screen.ASSET_DETAIL && selectedAssetId && assets.find(a => a.id === selectedAssetId) && <AssetDetail asset={assets.find(a => a.id === selectedAssetId)!} transactions={transactions.filter(t => t.assetId === selectedAssetId)} currency={currency} onBack={() => setCurrentScreen(Screen.DASHBOARD)} onDelete={() => handleDeleteAsset(selectedAssetId)} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onUpdateAsset={handleUpdateAsset} />}

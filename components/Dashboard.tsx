@@ -37,6 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [sliderVal, setSliderVal] = useState(100);
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null | 'unassigned'>(null);
+  const [dragOverAssetId, setDragOverAssetId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = () => {
@@ -113,7 +114,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return null;
   };
 
-  // REORDERING LOGIC
+  // DRAG & DROP REORDERING LOGIC
   const handleDragStart = (id: string) => {
     setTimeout(() => setDraggedAssetId(id), 0);
   };
@@ -121,6 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const handleDragEnd = () => {
     setDraggedAssetId(null);
     setDropTargetId(null);
+    setDragOverAssetId(null);
   };
 
   const handleDropOnGroup = (groupId?: string) => {
@@ -140,7 +142,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (dragIdx === -1 || targetIdx === -1) return;
 
     const [draggedItem] = currentAssets.splice(dragIdx, 1);
-    const targetItem = currentAssets[targetIdx];
+    const targetItem = currentAssets[targetIdx > dragIdx ? targetIdx : targetIdx]; // Adjusted splice logic
     
     // Update the dragged item's group to match the target's group
     draggedItem.groupId = targetItem.groupId;
@@ -197,6 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </header>
 
       <div className="space-y-4">
+        {/* Performance Chart Section */}
         <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Performance</h3>
@@ -242,70 +245,79 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
+        {/* PIE CHARTS SECTION - RESTORED AND IMPROVED */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {allocationData.length > 0 && (
-            <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6">
-              <div className="w-1/3 h-32 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={allocationData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1500}>
-                      {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Scale size={16} className="text-slate-700" /></div>
-              </div>
-              <div className="flex-1 space-y-3 overflow-hidden">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asset Mix</h3>
-                <div className="grid grid-cols-1 gap-y-1.5">
-                  {allocationData.slice(0, 4).map((item, idx) => {
-                    const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
-                    return (
-                      <div key={idx} className="flex items-center justify-between space-x-2">
-                        <div className="flex items-center space-x-1.5 overflow-hidden">
-                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="text-[10px] font-bold text-slate-300 truncate">{item.name}</span>
-                        </div>
-                        <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
-                      </div>
-                    );
-                  })}
+          <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6 min-h-[160px]">
+            {allocationData.length > 0 ? (
+              <>
+                <div className="w-1/3 h-32 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={allocationData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1000}>
+                        {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Scale size={16} className="text-slate-700" /></div>
                 </div>
-              </div>
-            </div>
-          )}
+                <div className="flex-1 space-y-3 overflow-hidden">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asset Mix</h3>
+                  <div className="grid grid-cols-1 gap-y-1.5">
+                    {allocationData.slice(0, 4).map((item, idx) => {
+                      const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between space-x-2">
+                          <div className="flex items-center space-x-1.5 overflow-hidden">
+                            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                            <span className="text-[10px] font-bold text-slate-300 truncate">{item.name}</span>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="w-full text-center opacity-20 py-4"><p className="text-[10px] font-black uppercase tracking-widest">No assets yet</p></div>
+            )}
+          </div>
 
-          {categoryData.length > 0 && (
-            <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6">
-              <div className="w-1/3 h-32 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={categoryData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1500}>
-                      {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Layers size={16} className="text-slate-700" /></div>
-              </div>
-              <div className="flex-1 space-y-3 overflow-hidden">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Allocation</h3>
-                <div className="grid grid-cols-1 gap-y-1.5">
-                  {categoryData.map((item, idx) => {
-                    const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
-                    return (
-                      <div key={idx} className="flex items-center justify-between space-x-2">
-                        <div className="flex items-center space-x-1.5 overflow-hidden">
-                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="text-[10px] font-bold text-slate-300 truncate">{item.name}</span>
-                        </div>
-                        <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
-                      </div>
-                    );
-                  })}
+          <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6 min-h-[160px]">
+            {categoryData.length > 0 ? (
+              <>
+                <div className="w-1/3 h-32 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1000}>
+                        {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Layers size={16} className="text-slate-700" /></div>
                 </div>
-              </div>
-            </div>
-          )}
+                <div className="flex-1 space-y-3 overflow-hidden">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Category Mix</h3>
+                  <div className="grid grid-cols-1 gap-y-1.5">
+                    {categoryData.map((item, idx) => {
+                      const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between space-x-2">
+                          <div className="flex items-center space-x-1.5 overflow-hidden">
+                            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                            <span className="text-[10px] font-bold text-slate-300 truncate">{item.name}</span>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="w-full text-center opacity-20 py-4"><p className="text-[10px] font-black uppercase tracking-widest">Add assets to see breakdown</p></div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -334,7 +346,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     onDragStart={() => handleDragStart(asset.id)} 
                     onDragEnd={handleDragEnd}
                     onDropOnAsset={handleDropOnAsset}
-                    isDragged={draggedAssetId === asset.id} 
+                    isDragged={draggedAssetId === asset.id}
+                    isDragTarget={dragOverAssetId === asset.id}
+                    onDragEnter={() => setDragOverAssetId(asset.id)}
                   />
                 ))}
               </div>
@@ -373,7 +387,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   );
 };
 
-const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, onDropOnAsset, isDragged }: any) => {
+const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, onDropOnAsset, isDragged, isDragTarget, onDragEnter }: any) => {
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
   
@@ -382,13 +396,16 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrag
       draggable 
       onDragStart={onDragStart} 
       onDragEnd={onDragEnd}
+      onDragEnter={(e) => { e.preventDefault(); onDragEnter(); }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.stopPropagation(); onDropOnAsset(asset.id); }}
       onClick={() => onAssetClick(asset.id)} 
       className={`bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all flex justify-between items-center group cursor-pointer ${
         isDragged 
           ? 'opacity-20 scale-95 border-indigo-500 ring-2 ring-indigo-500/20' 
-          : 'opacity-100 border-slate-800 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1'
+          : isDragTarget 
+            ? 'border-indigo-500 ring-4 ring-indigo-500/10 scale-[1.02]' 
+            : 'opacity-100 border-slate-800 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1'
       }`}
     >
       <div className="flex items-center space-x-3 min-w-[100px]">
