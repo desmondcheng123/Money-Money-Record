@@ -22,10 +22,10 @@ interface DashboardProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'Stock': '#6366f1', // Indigo
-  'ETF': '#10b981',   // Emerald
-  'Crypto': '#f59e0b', // Amber
-  'Cash': '#94a3b8'    // Slate
+  'Stock': '#6366f1',
+  'ETF': '#10b981',
+  'Crypto': '#f59e0b',
+  'Cash': '#94a3b8'
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -75,7 +75,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
   }, [assets]);
 
-  // CATEGORY PIE CHART LOGIC
   const categoryData = useMemo(() => {
     const totals: Record<string, number> = {};
     assets.forEach(asset => {
@@ -83,11 +82,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     });
     return Object.entries(totals)
       .filter(([_, value]) => value > 0)
-      .map(([name, value]) => ({ 
-        name, 
-        value, 
-        color: CATEGORY_COLORS[name] || '#6366f1' 
-      }))
+      .map(([name, value]) => ({ name, value, color: CATEGORY_COLORS[name] || '#6366f1' }))
       .sort((a, b) => b.value - a.value);
   }, [assets]);
 
@@ -118,12 +113,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return null;
   };
 
-  // DRAG AND DROP HANDLERS
+  // REORDERING LOGIC
   const handleDragStart = (id: string) => {
-    // Slight delay allows the browser to pick up the element snapshot BEFORE we change its opacity
-    setTimeout(() => {
-      setDraggedAssetId(id);
-    }, 0);
+    setTimeout(() => setDraggedAssetId(id), 0);
   };
 
   const handleDragEnd = () => {
@@ -131,10 +123,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setDropTargetId(null);
   };
 
-  const handleDrop = (groupId?: string) => {
+  const handleDropOnGroup = (groupId?: string) => {
     if (draggedAssetId) {
       onMoveToGroup(draggedAssetId, groupId);
     }
+    handleDragEnd();
+  };
+
+  const handleDropOnAsset = (targetAssetId: string) => {
+    if (!draggedAssetId || draggedAssetId === targetAssetId) return;
+
+    const currentAssets = [...sortedAssets];
+    const dragIdx = currentAssets.findIndex(a => a.id === draggedAssetId);
+    const targetIdx = currentAssets.findIndex(a => a.id === targetAssetId);
+    
+    if (dragIdx === -1 || targetIdx === -1) return;
+
+    const [draggedItem] = currentAssets.splice(dragIdx, 1);
+    const targetItem = currentAssets[targetIdx];
+    
+    // Update the dragged item's group to match the target's group
+    draggedItem.groupId = targetItem.groupId;
+    
+    // Insert at the target position
+    currentAssets.splice(targetIdx, 0, draggedItem);
+    
+    onReorderAssets(currentAssets);
     handleDragEnd();
   };
 
@@ -183,7 +197,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </header>
 
       <div className="space-y-4">
-        {/* Main Performance Chart */}
         <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Performance</h3>
@@ -229,7 +242,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Breakdown Charts Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {allocationData.length > 0 && (
             <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6">
@@ -303,7 +315,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           const groupValue = groupAssets.reduce((acc, a) => acc + a.currentValue, 0);
           const isOver = dropTargetId === group.id;
           return (
-            <div key={group.id} onDragOver={(e) => { e.preventDefault(); setDropTargetId(group.id); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDrop(group.id)} className="space-y-3">
+            <div key={group.id} onDragOver={(e) => { e.preventDefault(); setDropTargetId(group.id); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDropOnGroup(group.id)} className="space-y-3">
               <div className="flex justify-between items-center px-2">
                  <div className="flex items-center space-x-2">
                     <Folder size={18} className={`${isOver ? 'text-indigo-400 scale-125' : 'text-slate-500'} transition-all`} />
@@ -321,6 +333,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     onAssetClick={onAssetClick} 
                     onDragStart={() => handleDragStart(asset.id)} 
                     onDragEnd={handleDragEnd}
+                    onDropOnAsset={handleDropOnAsset}
                     isDragged={draggedAssetId === asset.id} 
                   />
                 ))}
@@ -329,7 +342,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           );
         })}
         
-        <div onDragOver={(e) => { e.preventDefault(); setDropTargetId('unassigned'); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDrop(undefined)} className={`space-y-4 rounded-[2.5rem] transition-all ${dropTargetId === 'unassigned' ? 'ring-2 ring-indigo-500/50 border-2 border-indigo-400 border-dashed p-4' : ''}`}>
+        <div onDragOver={(e) => { e.preventDefault(); setDropTargetId('unassigned'); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDropOnGroup(undefined)} className={`space-y-4 rounded-[2.5rem] transition-all ${dropTargetId === 'unassigned' ? 'ring-2 ring-indigo-500/50 border-2 border-indigo-400 border-dashed p-4' : ''}`}>
           <Portfolio 
             assets={sortedAssets.filter(a => !a.groupId)} 
             currency={currency} 
@@ -337,6 +350,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             onAddAsset={onAddAsset} 
             onDragStart={handleDragStart} 
             onDragEnd={handleDragEnd}
+            onDropOnAsset={handleDropOnAsset}
             draggedAssetId={draggedAssetId} 
             embedded={true} 
           />
@@ -359,7 +373,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   );
 };
 
-const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, isDragged }: any) => {
+const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, onDropOnAsset, isDragged }: any) => {
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
   
@@ -368,6 +382,8 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrag
       draggable 
       onDragStart={onDragStart} 
       onDragEnd={onDragEnd}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => { e.stopPropagation(); onDropOnAsset(asset.id); }}
       onClick={() => onAssetClick(asset.id)} 
       className={`bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all flex justify-between items-center group cursor-pointer ${
         isDragged 

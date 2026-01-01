@@ -10,12 +10,13 @@ interface PortfolioProps {
   onAddAsset: (asset: Omit<Asset, 'id' | 'order' | 'priceHistory'>) => void;
   onDragStart?: (id: string) => void;
   onDragEnd?: () => void;
+  onDropOnAsset?: (id: string) => void;
   draggedAssetId?: string | null;
   embedded?: boolean;
 }
 
 export const Portfolio: React.FC<PortfolioProps> = ({ 
-  assets, currency, onAssetClick, onAddAsset, onDragStart, onDragEnd, draggedAssetId, embedded = false 
+  assets, currency, onAssetClick, onAddAsset, onDragStart, onDragEnd, onDropOnAsset, draggedAssetId, embedded = false 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +120,7 @@ export const Portfolio: React.FC<PortfolioProps> = ({
             onAssetClick={onAssetClick}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            onDropOnAsset={onDropOnAsset}
             isDragged={draggedAssetId === asset.id}
           />
         ))}
@@ -132,7 +134,7 @@ export const Portfolio: React.FC<PortfolioProps> = ({
   );
 };
 
-const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, isDragged }: any) => {
+const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, onDropOnAsset, isDragged }: any) => {
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
 
@@ -142,6 +144,7 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrag
       onDragStart={() => onDragStart?.(asset.id)}
       onDragEnd={() => onDragEnd?.()}
       onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => { e.stopPropagation(); onDropOnAsset?.(asset.id); }}
       onClick={() => onAssetClick(asset.id)}
       className={`bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all duration-300 flex justify-between items-center cursor-pointer group ${
         isDragged 
