@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { PortfolioStats, Asset, AssetGroup, TransactionType } from '../types';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, ArrowRight, FolderPlus, X, Folder, GripVertical, Trash2, Target, Scale, Download, FileJson, Layers } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, FolderPlus, X, Folder, GripVertical, Trash2, Target, Scale, FileJson, Layers } from 'lucide-react';
 import { Portfolio } from './Portfolio';
 
 interface DashboardProps {
@@ -22,10 +22,10 @@ interface DashboardProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'Stock': '#6366f1',
-  'ETF': '#10b981',
-  'Crypto': '#f59e0b',
-  'Cash': '#94a3b8'
+  'Stock': '#6366f1', // Indigo
+  'ETF': '#10b981',   // Emerald
+  'Crypto': '#f59e0b', // Amber
+  'Cash': '#94a3b8'    // Slate
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -75,13 +75,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
       .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
   }, [assets]);
 
+  // CATEGORY PIE CHART LOGIC
   const categoryData = useMemo(() => {
     const totals: Record<string, number> = {};
     assets.forEach(asset => {
       totals[asset.category] = (totals[asset.category] || 0) + asset.currentValue;
     });
     return Object.entries(totals)
-      .map(([name, value]) => ({ name, value, color: CATEGORY_COLORS[name] || '#6366f1' }))
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({ 
+        name, 
+        value, 
+        color: CATEGORY_COLORS[name] || '#6366f1' 
+      }))
       .sort((a, b) => b.value - a.value);
   }, [assets]);
 
@@ -110,6 +116,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
       );
     }
     return null;
+  };
+
+  // DRAG AND DROP HANDLERS
+  const handleDragStart = (id: string) => {
+    // Slight delay allows the browser to pick up the element snapshot BEFORE we change its opacity
+    setTimeout(() => {
+      setDraggedAssetId(id);
+    }, 0);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedAssetId(null);
+    setDropTargetId(null);
+  };
+
+  const handleDrop = (groupId?: string) => {
+    if (draggedAssetId) {
+      onMoveToGroup(draggedAssetId, groupId);
+    }
+    handleDragEnd();
   };
 
   return (
@@ -156,17 +182,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </header>
 
-      {hasUnsavedChanges && (
-        <div className="p-4 bg-indigo-600 rounded-[2rem] shadow-xl shadow-indigo-600/20 text-white flex items-center justify-between animate-in slide-in-from-top duration-500">
-           <div className="flex items-center space-x-3">
-              <Download size={20} className="animate-bounce" />
-              <p className="text-xs font-bold leading-tight">Backup needed. Click file icon above to save your vault!</p>
-           </div>
-           <button onClick={onExportVault} className="px-3 py-1.5 bg-white text-indigo-600 rounded-xl text-[10px] font-black uppercase">Save Now</button>
-        </div>
-      )}
-
       <div className="space-y-4">
+        {/* Main Performance Chart */}
         <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Performance</h3>
@@ -179,11 +196,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
           
-          <div 
-            ref={scrollContainerRef}
-            onScroll={handleScroll}
-            className="overflow-x-auto no-scrollbar scroll-smooth cursor-grab active:cursor-grabbing"
-          >
+          <div ref={scrollContainerRef} onScroll={handleScroll} className="overflow-x-auto no-scrollbar scroll-smooth cursor-grab active:cursor-grabbing">
             <div style={{ width: chartWidth }} className="h-64 px-4 py-6">
               {portfolioHistory.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -216,6 +229,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
+        {/* Breakdown Charts Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {allocationData.length > 0 && (
             <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6">
@@ -230,9 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Scale size={16} className="text-slate-700" /></div>
               </div>
               <div className="flex-1 space-y-3 overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asset Mix</h3>
-                </div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asset Mix</h3>
                 <div className="grid grid-cols-1 gap-y-1.5">
                   {allocationData.slice(0, 4).map((item, idx) => {
                     const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
@@ -264,9 +276,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Layers size={16} className="text-slate-700" /></div>
               </div>
               <div className="flex-1 space-y-3 overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Breakdown</h3>
-                </div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Allocation</h3>
                 <div className="grid grid-cols-1 gap-y-1.5">
                   {categoryData.map((item, idx) => {
                     const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
@@ -293,7 +303,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           const groupValue = groupAssets.reduce((acc, a) => acc + a.currentValue, 0);
           const isOver = dropTargetId === group.id;
           return (
-            <div key={group.id} onDragOver={(e) => { e.preventDefault(); setDropTargetId(group.id); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => { onMoveToGroup(draggedAssetId!, group.id); setDraggedAssetId(null); setDropTargetId(null); }} className="space-y-3">
+            <div key={group.id} onDragOver={(e) => { e.preventDefault(); setDropTargetId(group.id); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDrop(group.id)} className="space-y-3">
               <div className="flex justify-between items-center px-2">
                  <div className="flex items-center space-x-2">
                     <Folder size={18} className={`${isOver ? 'text-indigo-400 scale-125' : 'text-slate-500'} transition-all`} />
@@ -303,14 +313,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                  <span className="text-xs font-bold text-slate-500">{formatCurrency(groupValue)}</span>
               </div>
               <div className={`space-y-3 p-2 rounded-[2rem] border-2 border-dashed min-h-[80px] transition-all ${isOver ? 'bg-indigo-950/20 border-indigo-500/50' : 'bg-slate-900/30 border-slate-800'}`}>
-                {groupAssets.map(asset => <AssetItemRow key={asset.id} asset={asset} formatCurrency={formatCurrency} onAssetClick={onAssetClick} onDragStart={() => setDraggedAssetId(asset.id)} isDragged={draggedAssetId === asset.id} />)}
+                {groupAssets.map(asset => (
+                  <AssetItemRow 
+                    key={asset.id} 
+                    asset={asset} 
+                    formatCurrency={formatCurrency} 
+                    onAssetClick={onAssetClick} 
+                    onDragStart={() => handleDragStart(asset.id)} 
+                    onDragEnd={handleDragEnd}
+                    isDragged={draggedAssetId === asset.id} 
+                  />
+                ))}
               </div>
             </div>
           );
         })}
-        <div onDragOver={(e) => { e.preventDefault(); setDropTargetId('unassigned'); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => { onMoveToGroup(draggedAssetId!, undefined); setDraggedAssetId(null); setDropTargetId(null); }} className={`space-y-4 rounded-[2.5rem] transition-all ${dropTargetId === 'unassigned' ? 'ring-2 ring-indigo-500/50 border-2 border-indigo-400 border-dashed p-4' : ''}`}>
-          {/* FIX: Using the correct prop 'onAddAsset' instead of undefined 'handleAddAsset' */}
-          <Portfolio assets={sortedAssets.filter(a => !a.groupId)} currency={currency} onAssetClick={onAssetClick} onAddAsset={onAddAsset} onDragStart={(id) => setDraggedAssetId(id)} draggedAssetId={draggedAssetId} embedded={true} />
+        
+        <div onDragOver={(e) => { e.preventDefault(); setDropTargetId('unassigned'); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => handleDrop(undefined)} className={`space-y-4 rounded-[2.5rem] transition-all ${dropTargetId === 'unassigned' ? 'ring-2 ring-indigo-500/50 border-2 border-indigo-400 border-dashed p-4' : ''}`}>
+          <Portfolio 
+            assets={sortedAssets.filter(a => !a.groupId)} 
+            currency={currency} 
+            onAssetClick={onAssetClick} 
+            onAddAsset={onAddAsset} 
+            onDragStart={handleDragStart} 
+            onDragEnd={handleDragEnd}
+            draggedAssetId={draggedAssetId} 
+            embedded={true} 
+          />
         </div>
       </section>
 
@@ -330,26 +359,56 @@ export const Dashboard: React.FC<DashboardProps> = ({
   );
 };
 
-const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, isDragged }: any) => {
+const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, isDragged }: any) => {
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
+  
   return (
-    <div draggable onDragStart={onDragStart} onClick={() => onAssetClick(asset.id)} className={`bg-slate-900 p-4 rounded-3xl shadow-sm border border-slate-800 transition-all flex justify-between items-center group cursor-pointer ${isDragged ? 'opacity-40 scale-95' : 'opacity-100 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1'}`}>
+    <div 
+      draggable 
+      onDragStart={onDragStart} 
+      onDragEnd={onDragEnd}
+      onClick={() => onAssetClick(asset.id)} 
+      className={`bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all flex justify-between items-center group cursor-pointer ${
+        isDragged 
+          ? 'opacity-20 scale-95 border-indigo-500 ring-2 ring-indigo-500/20' 
+          : 'opacity-100 border-slate-800 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1'
+      }`}
+    >
       <div className="flex items-center space-x-3 min-w-[100px]">
-        <div className="p-1 cursor-grab active:cursor-grabbing"><GripVertical size={16} className="text-slate-600 opacity-40 group-hover:opacity-100" /></div>
-        {asset.icon ? <img src={asset.icon} className="w-9 h-9 rounded-2xl object-cover" /> : <div className="w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-white text-[10px]" style={{ backgroundColor: asset.color }}>{asset.ticker.slice(0, 2)}</div>}
-        <div className="overflow-hidden"><h4 className="font-bold text-slate-100 truncate text-sm">{asset.ticker}</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter truncate">{asset.category}</p></div>
+        <div className="p-1 cursor-grab active:cursor-grabbing">
+          <GripVertical size={16} className="text-slate-600 opacity-40 group-hover:opacity-100" />
+        </div>
+        {asset.icon ? (
+          <img src={asset.icon} className="w-9 h-9 rounded-2xl object-cover" />
+        ) : (
+          <div className="w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-white text-[10px]" style={{ backgroundColor: asset.color }}>
+            {asset.ticker.slice(0, 2)}
+          </div>
+        )}
+        <div className="overflow-hidden">
+          <h4 className="font-bold text-slate-100 truncate text-sm">{asset.ticker}</h4>
+          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter truncate">{asset.category}</p>
+        </div>
       </div>
-      <div className="flex-1 h-8 mx-4 opacity-50 group-hover:opacity-100 transition-opacity">
+      
+      <div className="flex-1 h-8 mx-4 opacity-30 group-hover:opacity-100 transition-opacity">
         {asset.priceHistory && asset.priceHistory.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={asset.priceHistory}><Line type="monotone" dataKey="value" stroke={returnAmt >= 0 ? "#10b981" : "#f43f5e"} strokeWidth={2} dot={false} /></LineChart>
+            <LineChart data={asset.priceHistory}>
+              <Line type="monotone" dataKey="value" stroke={returnAmt >= 0 ? "#10b981" : "#f43f5e"} strokeWidth={2} dot={false} />
+            </LineChart>
           </ResponsiveContainer>
-        ) : <div className="h-full w-full border-b border-slate-800 opacity-20"></div>}
+        ) : (
+          <div className="h-full w-full border-b border-slate-800 opacity-20"></div>
+        )}
       </div>
+
       <div className="text-right min-w-[80px]">
         <p className="font-bold text-slate-100 text-sm">{formatCurrency(asset.currentValue)}</p>
-        <div className={`text-[10px] font-black ${returnAmt >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{returnPct.toFixed(1)}%</div>
+        <div className={`text-[10px] font-black ${returnAmt >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+          {returnPct.toFixed(1)}%
+        </div>
       </div>
     </div>
   );

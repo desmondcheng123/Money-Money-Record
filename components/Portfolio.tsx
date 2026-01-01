@@ -9,13 +9,13 @@ interface PortfolioProps {
   onAssetClick: (id: string) => void;
   onAddAsset: (asset: Omit<Asset, 'id' | 'order' | 'priceHistory'>) => void;
   onDragStart?: (id: string) => void;
-  onDropOnAsset?: (id: string) => void;
+  onDragEnd?: () => void;
   draggedAssetId?: string | null;
   embedded?: boolean;
 }
 
 export const Portfolio: React.FC<PortfolioProps> = ({ 
-  assets, currency, onAssetClick, onAddAsset, onDragStart, onDropOnAsset, draggedAssetId, embedded = false 
+  assets, currency, onAssetClick, onAddAsset, onDragStart, onDragEnd, draggedAssetId, embedded = false 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,16 +118,21 @@ export const Portfolio: React.FC<PortfolioProps> = ({
             formatCurrency={formatCurrency}
             onAssetClick={onAssetClick}
             onDragStart={onDragStart}
-            onDropOnAsset={onDropOnAsset}
+            onDragEnd={onDragEnd}
             isDragged={draggedAssetId === asset.id}
           />
         ))}
+        {assets.length === 0 && (
+          <div className="text-center py-10 opacity-20">
+             <p className="text-[10px] font-black uppercase tracking-widest">No unassigned assets</p>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDropOnAsset, isDragged }: any) => {
+const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDragEnd, isDragged }: any) => {
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
 
@@ -135,12 +140,12 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrop
     <div 
       draggable 
       onDragStart={() => onDragStart?.(asset.id)}
+      onDragEnd={() => onDragEnd?.()}
       onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => { e.stopPropagation(); onDropOnAsset?.(asset.id); }}
       onClick={() => onAssetClick(asset.id)}
-      className={`bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all duration-500 flex justify-between items-center cursor-pointer group ${
+      className={`bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all duration-300 flex justify-between items-center cursor-pointer group ${
         isDragged 
-          ? 'opacity-40 scale-90 translate-y-4' 
+          ? 'opacity-20 scale-95 border-indigo-500' 
           : 'border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-xl hover:-translate-y-1'
       }`}
     >
@@ -155,7 +160,7 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrop
         </div>
       </div>
 
-      <div className="flex-1 h-8 mx-4 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+      <div className="flex-1 h-8 mx-4 opacity-50 group-hover:opacity-100 transition-opacity duration-300">
         {asset.priceHistory && asset.priceHistory.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={asset.priceHistory}>
