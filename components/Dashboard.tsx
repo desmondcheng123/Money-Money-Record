@@ -48,6 +48,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  // FIX: Destructure from scrollContainerRef.current instead of using variables before declaration
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
     setSliderVal(val);
@@ -142,12 +143,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (dragIdx === -1 || targetIdx === -1) return;
 
     const [draggedItem] = currentAssets.splice(dragIdx, 1);
-    const targetItem = currentAssets[targetIdx > dragIdx ? targetIdx : targetIdx]; // Adjusted splice logic
+    const targetItem = currentAssets[targetIdx > dragIdx ? targetIdx : targetIdx]; 
     
-    // Update the dragged item's group to match the target's group
     draggedItem.groupId = targetItem.groupId;
-    
-    // Insert at the target position
     currentAssets.splice(targetIdx, 0, draggedItem);
     
     onReorderAssets(currentAssets);
@@ -245,7 +243,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* PIE CHARTS SECTION - RESTORED AND IMPROVED */}
+        {/* PIE CHARTS SECTION - FIXED 100% CIRCLE GAP */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6 min-h-[160px]">
             {allocationData.length > 0 ? (
@@ -253,7 +251,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="w-1/3 h-32 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={allocationData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1000}>
+                      <Pie 
+                        data={allocationData} 
+                        cx="50%" 
+                        cy="50%" 
+                        innerRadius={35} 
+                        outerRadius={50} 
+                        paddingAngle={allocationData.length > 1 ? 4 : 0} 
+                        dataKey="value" 
+                        animationDuration={1000}
+                        stroke="none"
+                      >
                         {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
                       </Pie>
                     </PieChart>
@@ -289,7 +297,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="w-1/3 h-32 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1000}>
+                      <Pie 
+                        data={categoryData} 
+                        cx="50%" 
+                        cy="50%" 
+                        innerRadius={35} 
+                        outerRadius={50} 
+                        paddingAngle={categoryData.length > 1 ? 4 : 0} 
+                        dataKey="value" 
+                        animationDuration={1000}
+                        stroke="none"
+                      >
                         {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
                       </Pie>
                     </PieChart>
