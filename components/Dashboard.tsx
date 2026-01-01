@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { PortfolioStats, Asset, AssetGroup, TransactionType } from '../types';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, ArrowRight, FolderPlus, X, Folder, GripVertical, Trash2, Target, Scale, Download, FileJson } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ArrowRight, FolderPlus, X, Folder, GripVertical, Trash2, Target, Scale, Download, FileJson, Layers } from 'lucide-react';
 import { Portfolio } from './Portfolio';
 
 interface DashboardProps {
@@ -20,6 +20,13 @@ interface DashboardProps {
   hasUnsavedChanges: boolean;
   onExportVault: () => void;
 }
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Stock': '#6366f1',
+  'ETF': '#10b981',
+  'Crypto': '#f59e0b',
+  'Cash': '#94a3b8'
+};
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions, hasUnsavedChanges, onExportVault
@@ -66,6 +73,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const allocationData = useMemo(() => {
     return assets.map(a => ({ name: a.ticker, value: a.currentValue, color: a.color }))
       .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
+  }, [assets]);
+
+  const categoryData = useMemo(() => {
+    const totals: Record<string, number> = {};
+    assets.forEach(asset => {
+      totals[asset.category] = (totals[asset.category] || 0) + asset.currentValue;
+    });
+    return Object.entries(totals)
+      .map(([name, value]) => ({ name, value, color: CATEGORY_COLORS[name] || '#6366f1' }))
+      .sort((a, b) => b.value - a.value);
   }, [assets]);
 
   const sortedAssets = useMemo(() => {
@@ -199,39 +216,75 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {allocationData.length > 0 && (
-          <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6">
-            <div className="w-1/3 h-32 relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={allocationData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1500}>
-                    {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Scale size={16} className="text-slate-700" /></div>
-            </div>
-            <div className="flex-1 space-y-3 overflow-hidden">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asset Mix</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {allocationData.length > 0 && (
+            <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6">
+              <div className="w-1/3 h-32 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={allocationData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1500}>
+                      {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Scale size={16} className="text-slate-700" /></div>
               </div>
-              <div className="grid grid-cols-1 gap-y-1.5">
-                {allocationData.slice(0, 4).map((item, idx) => {
-                  const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
-                  return (
-                    <div key={idx} className="flex items-center justify-between space-x-2">
-                      <div className="flex items-center space-x-1.5 overflow-hidden">
-                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className="text-[10px] font-bold text-slate-300 truncate">{item.name}</span>
+              <div className="flex-1 space-y-3 overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asset Mix</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-y-1.5">
+                  {allocationData.slice(0, 4).map((item, idx) => {
+                    const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
+                    return (
+                      <div key={idx} className="flex items-center justify-between space-x-2">
+                        <div className="flex items-center space-x-1.5 overflow-hidden">
+                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="text-[10px] font-bold text-slate-300 truncate">{item.name}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {categoryData.length > 0 && (
+            <div className="bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-800 p-6 flex items-center space-x-6">
+              <div className="w-1/3 h-32 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={categoryData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" animationDuration={1500}>
+                      {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Layers size={16} className="text-slate-700" /></div>
+              </div>
+              <div className="flex-1 space-y-3 overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Breakdown</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-y-1.5">
+                  {categoryData.map((item, idx) => {
+                    const weight = stats.totalValue > 0 ? (item.value / stats.totalValue) * 100 : 0;
+                    return (
+                      <div key={idx} className="flex items-center justify-between space-x-2">
+                        <div className="flex items-center space-x-1.5 overflow-hidden">
+                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="text-[10px] font-bold text-slate-300 truncate">{item.name}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-slate-500">{weight.toFixed(0)}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <section className="space-y-6">
@@ -256,6 +309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           );
         })}
         <div onDragOver={(e) => { e.preventDefault(); setDropTargetId('unassigned'); }} onDragLeave={() => setDropTargetId(null)} onDrop={() => { onMoveToGroup(draggedAssetId!, undefined); setDraggedAssetId(null); setDropTargetId(null); }} className={`space-y-4 rounded-[2.5rem] transition-all ${dropTargetId === 'unassigned' ? 'ring-2 ring-indigo-500/50 border-2 border-indigo-400 border-dashed p-4' : ''}`}>
+          {/* FIX: Using the correct prop 'onAddAsset' instead of undefined 'handleAddAsset' */}
           <Portfolio assets={sortedAssets.filter(a => !a.groupId)} currency={currency} onAssetClick={onAssetClick} onAddAsset={onAddAsset} onDragStart={(id) => setDraggedAssetId(id)} draggedAssetId={draggedAssetId} embedded={true} />
         </div>
       </section>
@@ -280,7 +334,7 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, isDrag
   const returnAmt = asset.currentValue - asset.totalInvested;
   const returnPct = asset.totalInvested > 0 ? (returnAmt / asset.totalInvested) * 100 : 0;
   return (
-    <div draggable onDragStart={onDragStart} onClick={() => onAssetClick(asset.id)} className={`bg-slate-900 p-4 rounded-3xl shadow-sm border border-slate-800 transition-all flex justify-between items-center group ${isDragged ? 'opacity-30 scale-95' : 'opacity-100 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1'}`}>
+    <div draggable onDragStart={onDragStart} onClick={() => onAssetClick(asset.id)} className={`bg-slate-900 p-4 rounded-3xl shadow-sm border border-slate-800 transition-all flex justify-between items-center group cursor-pointer ${isDragged ? 'opacity-40 scale-95' : 'opacity-100 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1'}`}>
       <div className="flex items-center space-x-3 min-w-[100px]">
         <div className="p-1 cursor-grab active:cursor-grabbing"><GripVertical size={16} className="text-slate-600 opacity-40 group-hover:opacity-100" /></div>
         {asset.icon ? <img src={asset.icon} className="w-9 h-9 rounded-2xl object-cover" /> : <div className="w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-white text-[10px]" style={{ backgroundColor: asset.color }}>{asset.ticker.slice(0, 2)}</div>}

@@ -29,7 +29,7 @@ export const Portfolio: React.FC<PortfolioProps> = ({
   });
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-MY', {
       style: 'currency',
       currency: currency,
     }).format(val);
@@ -97,11 +97,11 @@ export const Portfolio: React.FC<PortfolioProps> = ({
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Current Value ($)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Current Value (RM)</label>
                 <input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.currentValue} onChange={e => setFormData({...formData, currentValue: e.target.value})} />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Total Invested ($)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Total Invested (RM)</label>
                 <input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.totalInvested} onChange={e => setFormData({...formData, totalInvested: e.target.value})} />
               </div>
               <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all">Create Asset</button>
@@ -140,7 +140,7 @@ const AssetItemRow = ({ asset, formatCurrency, onAssetClick, onDragStart, onDrop
       onClick={() => onAssetClick(asset.id)}
       className={`bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border transition-all duration-500 flex justify-between items-center cursor-pointer group ${
         isDragged 
-          ? 'opacity-0 scale-90 translate-y-4' 
+          ? 'opacity-40 scale-90 translate-y-4' 
           : 'border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-xl hover:-translate-y-1'
       }`}
     >
