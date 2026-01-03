@@ -84,7 +84,6 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
   const recentChangeAmt = asset.currentValue - lastValue;
   const recentChangePct = lastValue > 0 ? (recentChangeAmt / lastValue) * 100 : 0;
 
-  // FIX: Group price history by date for the chart
   const groupedPriceHistory = useMemo(() => {
     const dates = Array.from(new Set<string>(asset.priceHistory.map(p => p.date.split('T')[0]))).sort();
     return dates.map(dateStr => {
@@ -127,7 +126,12 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
 
   const handleInfoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateAsset(asset.id, { ticker: infoFormData.ticker.toUpperCase(), name: infoFormData.name, category: infoFormData.category, icon: infoFormData.icon });
+    onUpdateAsset(asset.id, { 
+      ticker: infoFormData.ticker.toUpperCase(), 
+      name: infoFormData.name, 
+      category: infoFormData.category, 
+      icon: infoFormData.icon 
+    });
     setIsEditingInfo(false);
   };
 
@@ -162,7 +166,16 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
       <div className="flex justify-between items-center">
         <button onClick={onBack} className="flex items-center text-slate-500 font-semibold hover:text-indigo-600 transition-colors"><ArrowLeft size={20} className="mr-2" /> Home</button>
         <div className="flex space-x-2">
-          <button onClick={() => setIsEditingInfo(true)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"><SettingsIcon size={20} /></button>
+          <button onClick={() => {
+            // Re-sync local state with actual asset values when opening
+            setInfoFormData({
+              ticker: asset.ticker,
+              name: asset.name,
+              category: asset.category,
+              icon: asset.icon,
+            });
+            setIsEditingInfo(true);
+          }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"><SettingsIcon size={20} /></button>
           <button onClick={() => setShowConfirmDelete(true)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"><Trash2 size={20} /></button>
         </div>
       </div>
@@ -187,14 +200,32 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
                 </div>
                 <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageChange} />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Ticker</label>
-                <input required placeholder="AAPL" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={infoFormData.ticker} onChange={e => setInfoFormData({...infoFormData, ticker: e.target.value})} />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Ticker</label>
+                  <input required placeholder="AAPL" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={infoFormData.ticker} onChange={e => setInfoFormData({...infoFormData, ticker: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Category</label>
+                  <select 
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+                    value={infoFormData.category} 
+                    onChange={e => setInfoFormData({...infoFormData, category: e.target.value as any})}
+                  >
+                    <option value="Stock">Stock</option>
+                    <option value="ETF">ETF</option>
+                    <option value="Crypto">Crypto</option>
+                    <option value="Cash">Cash</option>
+                  </select>
+                </div>
               </div>
+
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Asset Name</label>
                 <input required placeholder="Apple Inc." className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={infoFormData.name} onChange={e => setInfoFormData({...infoFormData, name: e.target.value})} />
               </div>
+
               <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all mt-4">Save Changes</button>
             </form>
           </div>
@@ -204,7 +235,13 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           {asset.icon ? <img src={asset.icon} className="w-14 h-14 rounded-3xl object-cover shadow-lg" /> : <div className="w-14 h-14 rounded-3xl flex items-center justify-center font-bold text-white text-xl shadow-lg" style={{ backgroundColor: asset.color }}>{asset.ticker}</div>}
-          <div><h2 className="text-2xl font-bold">{asset.ticker}</h2><p className="text-sm text-slate-500">{asset.name}</p></div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-2xl font-bold">{asset.ticker}</h2>
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[9px] font-black uppercase text-slate-500 rounded-md tracking-widest">{asset.category}</span>
+            </div>
+            <p className="text-sm text-slate-500">{asset.name}</p>
+          </div>
         </div>
         <button onClick={() => setIsRecording(true)} className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"><Plus size={20} /><span className="text-xs font-bold uppercase">Update</span></button>
       </div>
