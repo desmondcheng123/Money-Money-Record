@@ -33,7 +33,7 @@ export interface Asset {
   id: string;
   ticker: string;
   name: string;
-  category: 'Stock' | 'ETF' | 'Crypto' | 'Cash';
+  category: string; 
   currentValue: number; 
   totalInvested: number; 
   color: string;

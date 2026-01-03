@@ -28,6 +28,17 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Cash': '#94a3b8'
 };
 
+const getCategoryColor = (category: string) => {
+  if (CATEGORY_COLORS[category]) return CATEGORY_COLORS[category];
+  // Simple hash for dynamic colors
+  let hash = 0;
+  for (let i = 0; i < category.length; i++) {
+    hash = category.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+  return "#" + "00000".substring(0, 6 - c.length) + c;
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ 
   stats, assets, groups, portfolioHistory, currency, onAssetClick, onAddAsset, onAddGroup, onDeleteGroup, onMoveToGroup, onReorderAssets, transactions, hasUnsavedChanges, onExportVault
 }) => {
@@ -83,7 +94,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     });
     return Object.entries(totals)
       .filter(([_, value]) => value > 0)
-      .map(([name, value]) => ({ name, value, color: CATEGORY_COLORS[name] || '#6366f1' }))
+      .map(([name, value]) => ({ name, value, color: getCategoryColor(name) }))
       .sort((a, b) => b.value - a.value);
   }, [assets]);
 

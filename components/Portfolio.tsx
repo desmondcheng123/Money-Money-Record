@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Asset } from '../types';
-import { Plus, X, Camera, GripVertical } from 'lucide-react';
+import { Plus, X, Camera, GripVertical, Hash } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 interface PortfolioProps {
@@ -24,10 +24,16 @@ export const Portfolio: React.FC<PortfolioProps> = ({
   const [formData, setFormData] = useState({
     ticker: '',
     name: '',
-    category: 'Stock' as const,
+    category: '',
     currentValue: '',
     totalInvested: '',
   });
+
+  const existingCategories = useMemo(() => {
+    const defaultCats = ['Stock', 'ETF', 'Crypto', 'Cash'];
+    const usedCats = Array.from(new Set(assets.map(a => a.category)));
+    return Array.from(new Set([...defaultCats, ...usedCats])).filter(c => c);
+  }, [assets]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-MY', {
@@ -50,7 +56,7 @@ export const Portfolio: React.FC<PortfolioProps> = ({
     onAddAsset({
       ticker: formData.ticker.toUpperCase(),
       name: formData.name,
-      category: formData.category,
+      category: formData.category || 'Uncategorized',
       currentValue: parseFloat(formData.currentValue),
       totalInvested: parseFloat(formData.totalInvested),
       color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
@@ -58,7 +64,7 @@ export const Portfolio: React.FC<PortfolioProps> = ({
     });
     setIsAdding(false);
     setIconPreview(undefined);
-    setFormData({ ticker: '', name: '', category: 'Stock', currentValue: '', totalInvested: '' });
+    setFormData({ ticker: '', name: '', category: '', currentValue: '', totalInvested: '' });
   };
 
   return (
@@ -85,6 +91,7 @@ export const Portfolio: React.FC<PortfolioProps> = ({
                 </div>
                 <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageChange} />
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Ticker</label>
@@ -92,11 +99,30 @@ export const Portfolio: React.FC<PortfolioProps> = ({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Category</label>
-                  <select className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})}>
-                    <option value="Stock">Stock</option><option value="ETF">ETF</option><option value="Crypto">Crypto</option><option value="Cash">Cash</option>
-                  </select>
+                  <input 
+                    required 
+                    placeholder="e.g. Dividend" 
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+                    value={formData.category} 
+                    onChange={e => setFormData({...formData, category: e.target.value})} 
+                  />
                 </div>
               </div>
+
+              {/* Category Suggestions */}
+              <div className="flex flex-wrap gap-2 py-1">
+                {existingCategories.map(cat => (
+                  <button 
+                    key={cat} 
+                    type="button" 
+                    onClick={() => setFormData({...formData, category: cat})}
+                    className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${formData.category === cat ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Current Value (RM)</label>
                 <input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.currentValue} onChange={e => setFormData({...formData, currentValue: e.target.value})} />

@@ -167,7 +167,6 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
         <button onClick={onBack} className="flex items-center text-slate-500 font-semibold hover:text-indigo-600 transition-colors"><ArrowLeft size={20} className="mr-2" /> Home</button>
         <div className="flex space-x-2">
           <button onClick={() => {
-            // Re-sync local state with actual asset values when opening
             setInfoFormData({
               ticker: asset.ticker,
               name: asset.name,
@@ -208,16 +207,13 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({ asset, transactions, c
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Category</label>
-                  <select 
+                  <input 
+                    required 
+                    placeholder="e.g. Dividend" 
                     className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
                     value={infoFormData.category} 
-                    onChange={e => setInfoFormData({...infoFormData, category: e.target.value as any})}
-                  >
-                    <option value="Stock">Stock</option>
-                    <option value="ETF">ETF</option>
-                    <option value="Crypto">Crypto</option>
-                    <option value="Cash">Cash</option>
-                  </select>
+                    onChange={e => setInfoFormData({...infoFormData, category: e.target.value})}
+                  />
                 </div>
               </div>
 
